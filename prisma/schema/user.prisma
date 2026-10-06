@@ -1,0 +1,34 @@
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  name              String             @db.VarChar(40)
+  avatar            String?
+  bio               String?
+  username          String?            @unique
+  emailVerifiedAt   DateTime?          @db.Timestamptz(3)
+  status            Status             @default(active)
+  passwordHash      String?
+  preferences       UserPreference?
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
+  sessions      UserSession[]
+  authProviders AuthProvider[]
+}
+
+enum Status {
+  active
+  suspended
+  pending_delete
+  banned
+}
+
+model UserPreference {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  desktopNotifications Boolean @default(true)
+  twoFactorEnabled     Boolean @default(false)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}

@@ -1,0 +1,19 @@
+enum AuthProviderType {
+  GOOGLE
+}
+
+model AuthProvider {
+  authProviderId String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider       AuthProviderType
+  providerUserId String
+  providerEmail  String?
+
+  linkedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([provider, providerUserId])
+  @@unique([userId, provider])
+}

@@ -1,0 +1,17 @@
+model AuthSession {
+  authSessionId String @id @default(cuid())
+
+  userSessionId String
+  userSession   UserSession @relation(fields: [userSessionId], references: [userSessionId], onDelete: Cascade)
+
+  refreshTokenHash        String  @unique
+  replacedByAuthSessionId String?
+
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userSessionId])
+  @@index([expiresAt])
+}

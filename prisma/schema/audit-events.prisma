@@ -1,0 +1,55 @@
+model AuditEvent {
+  eventId String @id
+
+  eventType String
+  category  AuditCategory
+  outcome   AuditOutcome
+  severity  AuditSeverity @default(info)
+
+  userId        String?
+  emailHash     String?
+  userSessionId String?
+  authSessionId String?
+  requestId     String?
+
+  ipAddress  String?
+  userAgent  String?
+  deviceName String?
+
+  city    String?
+  region  String?
+  country String?
+
+  reason   String?
+  changes  Json?
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([requestId])
+  @@index([userSessionId])
+  @@index([createdAt])
+}
+
+enum AuditCategory {
+  authentication
+  account
+  session
+  security
+  business
+}
+
+enum AuditOutcome {
+  success
+  failure
+  blocked
+}
+
+enum AuditSeverity {
+  info
+  warning
+  error
+  critical
+}

@@ -1,0 +1,22 @@
+model UserSession {
+  userSessionId        String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentAuthSessionId String?  @unique
+  userAgent            String?
+  deviceName           String?
+  ipAddress            String?
+  city                 String?
+  region               String?
+  country              String?
+  lastSeenAt           DateTime @default(now()) @db.Timestamptz(3)
+
+  revokedAt DateTime? @db.Timestamptz(3)
+
+  authSessions AuthSession[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([revokedAt])
+  @@index([userId])
+}

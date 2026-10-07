@@ -1,134 +1,61 @@
-import { Transform, TransformFnParams, Type } from 'class-transformer';
+import { Transform, type TransformFnParams } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
-  IsEmail,
-  IsObject,
-  IsOptional,
+  IsIn,
   IsString,
   MaxLength,
   MinLength,
-  ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 
-export class OnboardingBusinessDto {
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim() : input;
-  })
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  name?: string;
-
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim() || null : input;
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  industry?: string | null;
-
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim() || null : input;
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  address?: string | null;
-}
-
-export class OnboardingStaffMemberDto {
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim() : input;
-  })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  name!: string;
-
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim().toLowerCase() : input;
-  })
-  @IsEmail()
-  @MaxLength(254)
-  email!: string;
-
-  @Transform(({ value }: TransformFnParams) => {
-    const input: unknown = value;
-    return typeof input === 'string' ? input.trim() : input;
-  })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(50)
-  role!: string;
-}
+export const ONBOARDING_USE_CASES = [
+  'manage_employees',
+  'personal_records',
+  'calculate_taxes',
+  'pay_employees',
+  'explore',
+] as const;
+export const ONBOARDING_USAGE = ['personal', 'employee', 'team'] as const;
+export const REFERRAL_SOURCES = [
+  'friend_or_colleague',
+  'social_media',
+  'search_engine',
+  'advertisement',
+  'event',
+  'other',
+] as const;
 
 export class UpsertOnboardingDto {
-  @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => OnboardingBusinessDto)
-  business?: OnboardingBusinessDto;
-
-  @IsOptional()
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsArray()
-  @ArrayMaxSize(50)
-  @ValidateNested({ each: true })
-  @Type(() => OnboardingStaffMemberDto)
-  staff?: OnboardingStaffMemberDto[];
-}
+  @ArrayMaxSize(ONBOARDING_USE_CASES.length)
+  @ArrayUnique()
+  @IsIn(ONBOARDING_USE_CASES, { each: true })
+  useCases?: (typeof ONBOARDING_USE_CASES)[number][];
 
-export interface OnboardingBusiness {
-  name?: string;
-  industry?: string | null;
-  address?: string | null;
-}
+  @ValidateIf(
+    (_object: unknown, value: unknown) => value !== undefined && value !== null,
+  )
+  @IsIn(ONBOARDING_USAGE)
+  usage?: (typeof ONBOARDING_USAGE)[number] | null;
 
-export interface OnboardingStaffMember {
-  name: string;
-  email: string;
-  role: string;
-}
+  @ValidateIf(
+    (_object: unknown, value: unknown) => value !== undefined && value !== null,
+  )
+  @IsIn(REFERRAL_SOURCES)
+  referralSource?: (typeof REFERRAL_SOURCES)[number] | null;
 
-export interface OnboardingDraftShape {
-  business: OnboardingBusiness | null;
-  staff: OnboardingStaffMember[];
-}
-
-export function toOnboardingBusiness(
-  value: unknown,
-): OnboardingBusiness | null {
-  if (!value || typeof value !== 'object') return null;
-  const record = value as Record<string, unknown>;
-  return {
-    ...(typeof record.name === 'string' ? { name: record.name } : {}),
-    industry: typeof record.industry === 'string' ? record.industry : null,
-    address: typeof record.address === 'string' ? record.address : null,
-  };
-}
-
-export function toOnboardingStaff(value: unknown): OnboardingStaffMember[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter(
-      (entry): entry is Record<string, unknown> =>
-        !!entry && typeof entry === 'object',
-    )
-    .filter(
-      (entry) =>
-        typeof entry.name === 'string' &&
-        typeof entry.email === 'string' &&
-        typeof entry.role === 'string',
-    )
-    .map((entry) => ({
-      name: entry.name as string,
-      email: entry.email as string,
-      role: entry.role as string,
-    }));
+  @Transform(({ value }: TransformFnParams) => {
+    const input: unknown = value;
+    return typeof input === 'string' ? input.trim() || null : input;
+  })
+  @ValidateIf(
+    (_object: unknown, value: unknown) => value !== undefined && value !== null,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  referralDetails?: string | null;
 }

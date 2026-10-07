@@ -9,6 +9,9 @@ export const AUDIT_EVENTS = {
   ACCOUNT_EMAIL_CHANGED: 'account.email.changed',
   ACCOUNT_ONBOARDING_DRAFT_SAVED: 'account.onboarding.draft_saved',
   ACCOUNT_ONBOARDING_COMPLETED: 'account.onboarding.completed',
+  ACCOUNT_ONBOARDING_PREFERENCES_UPDATED:
+    'account.onboarding.preferences_updated',
+  ACCOUNT_REFERRAL_UPDATED: 'account.referral.updated',
   EMAIL_VERIFICATION_CODE_SENT: 'authentication.email_verification.code_sent',
   EMAIL_VERIFICATION_FAILED: 'authentication.email_verification.failed',
   EMAIL_VERIFIED: 'authentication.email_verification.succeeded',

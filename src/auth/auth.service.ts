@@ -16,11 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
-import type { OnboardingDraftShape } from '../onboarding/dto/upsert-onboarding.dto';
-import {
-  toOnboardingBusiness,
-  toOnboardingStaff,
-} from '../onboarding/dto/upsert-onboarding.dto';
+import { toPublicPreferences } from '../onboarding/onboarding-preferences';
 import { LoginDto } from './dto/login.dto';
 import {
   RefreshAlreadyRotatedException,
@@ -384,7 +380,7 @@ export class AuthService {
         name: user.name,
         username: user.username,
         avatar: user.avatar,
-        onboarding: await this.getOnboardingDraft(user.id),
+        preferences: await this.getUserPreferences(user.id),
       },
       session,
     };
@@ -452,7 +448,7 @@ export class AuthService {
         name: user.name,
         username: user.username,
         avatar: user.avatar,
-        onboarding: await this.getOnboardingDraft(user.id),
+        preferences: await this.getUserPreferences(user.id),
       },
       session,
     };
@@ -891,17 +887,11 @@ export class AuthService {
     return email.trim().toLowerCase();
   }
 
-  private async getOnboardingDraft(
-    userId: string,
-  ): Promise<OnboardingDraftShape | null> {
-    const draft = await this.prisma.onboardingDraft.findUnique({
+  private async getUserPreferences(userId: string) {
+    const preferences = await this.prisma.userPreference.findUnique({
       where: { userId },
     });
-    if (!draft) return null;
-    return {
-      business: toOnboardingBusiness(draft.business),
-      staff: toOnboardingStaff(draft.staff),
-    };
+    return toPublicPreferences(preferences);
   }
 
   private sourceIdentifier(context: RequestLocationContext): string {

@@ -15,11 +15,10 @@ import { EmailService } from '../email/email.service';
 import type { RequestLocationContext } from '../location/location.service';
 import { SensitiveActionRateLimitService } from '../rate-limit/sensitive-action-rate-limit.service';
 import type { SensitiveAction } from '../sensitive-action/dto/request-sensitive-verification.dto';
-import type { OnboardingDraftShape } from '../onboarding/dto/upsert-onboarding.dto';
 import {
-  toOnboardingBusiness,
-  toOnboardingStaff,
-} from '../onboarding/dto/upsert-onboarding.dto';
+  PUBLIC_PREFERENCES_SELECT,
+  toPublicPreferences,
+} from '../onboarding/onboarding-preferences';
 import { SensitiveActionVerificationService } from '../sensitive-action/sensitive-action-verification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
@@ -39,10 +38,7 @@ const PUBLIC_USER_SELECT = {
   createdAt: true,
   updatedAt: true,
   preferences: {
-    select: {
-      desktopNotifications: true,
-      twoFactorEnabled: true,
-    },
+    select: PUBLIC_PREFERENCES_SELECT,
   },
 } satisfies Prisma.UserSelect;
 
@@ -72,20 +68,7 @@ export class UsersService {
     return {
       ...safeUser,
       hasPassword: Boolean(passwordHash),
-      onboarding: await this.getOnboardingDraft(userId),
-    };
-  }
-
-  async getOnboardingDraft(
-    userId: string,
-  ): Promise<OnboardingDraftShape | null> {
-    const draft = await this.prisma.onboardingDraft.findUnique({
-      where: { userId },
-    });
-    if (!draft) return null;
-    return {
-      business: toOnboardingBusiness(draft.business),
-      staff: toOnboardingStaff(draft.staff),
+      preferences: toPublicPreferences(safeUser.preferences),
     };
   }
 
@@ -124,7 +107,7 @@ export class UsersService {
           },
           transaction,
         );
-        return user;
+        return { ...user, preferences: toPublicPreferences(user.preferences) };
       });
     } catch (error: unknown) {
       if (this.isUniqueConstraintError(error)) {
@@ -182,10 +165,7 @@ export class UsersService {
           desktopNotifications: input.desktopNotifications,
           twoFactorEnabled: input.twoFactorEnabled,
         },
-        select: {
-          desktopNotifications: true,
-          twoFactorEnabled: true,
-        },
+        select: PUBLIC_PREFERENCES_SELECT,
       });
       await this.audit.record(
         {
@@ -205,7 +185,7 @@ export class UsersService {
         },
         transaction,
       );
-      return preferences;
+      return toPublicPreferences(preferences);
     });
   }
 

@@ -34,6 +34,19 @@ export class SessionController {
     );
   }
 
+  @Get('location-diagnostics')
+  @Header('Cache-Control', 'no-store')
+  locationDiagnostics(@Req() request: AuthenticatedRequest) {
+    const context = this.locations.getRequestContext(request);
+    return {
+      trustProxy: request.app.get('trust proxy') as boolean | number | string,
+      socketIp: request.socket.remoteAddress ?? null,
+      forwardedFor: request.get('x-forwarded-for') ?? null,
+      resolvedIp: context.requestMetadata.ipAddress,
+      location: context.location,
+    };
+  }
+
   @Delete('others')
   revokeOthers(@Req() request: AuthenticatedRequest) {
     return this.sessions.revokeOtherUserSessions(

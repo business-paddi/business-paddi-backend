@@ -15,6 +15,11 @@ import { EmailService } from '../email/email.service';
 import type { RequestLocationContext } from '../location/location.service';
 import { SensitiveActionRateLimitService } from '../rate-limit/sensitive-action-rate-limit.service';
 import type { SensitiveAction } from '../sensitive-action/dto/request-sensitive-verification.dto';
+import type { OnboardingDraftShape } from '../onboarding/dto/upsert-onboarding.dto';
+import {
+  toOnboardingBusiness,
+  toOnboardingStaff,
+} from '../onboarding/dto/upsert-onboarding.dto';
 import { SensitiveActionVerificationService } from '../sensitive-action/sensitive-action-verification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
@@ -64,7 +69,24 @@ export class UsersService {
       },
     });
     const { passwordHash, ...safeUser } = user;
-    return { ...safeUser, hasPassword: Boolean(passwordHash) };
+    return {
+      ...safeUser,
+      hasPassword: Boolean(passwordHash),
+      onboarding: await this.getOnboardingDraft(userId),
+    };
+  }
+
+  async getOnboardingDraft(
+    userId: string,
+  ): Promise<OnboardingDraftShape | null> {
+    const draft = await this.prisma.onboardingDraft.findUnique({
+      where: { userId },
+    });
+    if (!draft) return null;
+    return {
+      business: toOnboardingBusiness(draft.business),
+      staff: toOnboardingStaff(draft.staff),
+    };
   }
 
   async updateProfile(

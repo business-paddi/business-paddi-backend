@@ -13,6 +13,8 @@ model User {
   updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
   sessions      UserSession[]
   authProviders AuthProvider[]
+  onboardingDraft OnboardingDraft?
+  businesses      Business[]
 }
 
 enum Status {

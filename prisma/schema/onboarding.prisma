@@ -1,0 +1,46 @@
+model OnboardingDraft {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  business Json?
+  staff    Json?
+
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model Business {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name     String  @db.VarChar(100)
+  industry String? @db.VarChar(100)
+  address  String? @db.VarChar(500)
+
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  invites   StaffInvite[]
+
+  @@index([ownerId])
+}
+
+enum StaffInviteStatus {
+  pending
+  accepted
+  revoked
+}
+
+model StaffInvite {
+  id         String @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name   String            @db.VarChar(100)
+  email  String            @db.VarChar(254)
+  role   String            @db.VarChar(50)
+  status StaffInviteStatus @default(pending)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([businessId, email])
+  @@index([businessId])
+}

@@ -1,7 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import type { PrismaService } from '../database/prisma.service';
-import type { EmailService } from '../email/email.service';
 import { BusinessAccessService } from './business-access.service';
 import { InviteService } from './invite.service';
 
@@ -18,12 +16,13 @@ describe('Invitation persistence and acceptance transactions', () => {
   const db = {
     $queryRaw: jest.fn(),
     role: { findFirst: jest.fn(), findUnique: jest.fn() },
-    user: { findFirst: jest.fn(), findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
     businessInvite: {
       create: jest.fn(),
       updateMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      findMany: jest.fn(),
     },
     businessMember: {
       findUnique: jest.fn(),
@@ -31,6 +30,7 @@ describe('Invitation persistence and acceptance transactions', () => {
       update: jest.fn(),
     },
     businessEmployee: { findUnique: jest.fn(), update: jest.fn() },
+    userNotification: { create: jest.fn() },
   };
   const transaction = jest.fn(
     async (fn: (database: unknown) => Promise<unknown>) => fn(db),
@@ -39,8 +39,6 @@ describe('Invitation persistence and acceptance transactions', () => {
   const service = new InviteService(
     { ...db, $transaction: transaction } as unknown as PrismaService,
     access as unknown as BusinessAccessService,
-    {} as EmailService,
-    new ConfigService(),
   );
   const token = 'a'.repeat(64);
   const stored = {
@@ -62,11 +60,11 @@ describe('Invitation persistence and acceptance transactions', () => {
     });
     db.role.findFirst.mockResolvedValue(role);
     db.role.findUnique.mockResolvedValue(role);
-    db.user.findFirst.mockResolvedValue(null);
     db.user.findUnique.mockResolvedValue({
       email: 'ada@example.com',
       emailVerifiedAt: new Date(),
       status: 'active',
+      id: 'u',
     });
     db.businessMember.findUnique.mockResolvedValue(null);
     db.businessMember.create.mockResolvedValue({
@@ -103,17 +101,61 @@ describe('Invitation persistence and acceptance transactions', () => {
         roleId: role.id,
         invitedByUserId: 'owner',
         tokenHash: createHash('sha256').update(delivery.token).digest('hex'),
+        deliveryStatus: 'pending',
         expiresAt: delivery.invite.expiresAt,
       },
     });
     expect(db.businessMember.create).not.toHaveBeenCalled();
   });
   it('supports an invitation without an employee or existing user', async () => {
+    db.user.findUnique.mockResolvedValue(null);
     await service.record(db as never, 'owner', 'b', {
       email: 'new@example.com',
     });
     expect(db.businessEmployee.findUnique).not.toHaveBeenCalled();
     expect(db.businessMember.create).not.toHaveBeenCalled();
+    expect(db.userNotification.create).not.toHaveBeenCalled();
+  });
+  it('creates an in-app notification for an existing customer', async () => {
+    const result = await service.create('owner', 'b', {
+      email: 'ada@example.com',
+    });
+    expect(result.invitation.deliveryStatus).toBe('pending');
+    expect(result.invitation).not.toHaveProperty('tokenHash');
+    expect(result.invitation).not.toHaveProperty('token');
+    expect(db.userNotification.create).toHaveBeenCalledWith({
+      data: { userId: 'u', inviteId: 'i' },
+    });
+  });
+  it('accepts an invite by ID with verified email ownership', async () => {
+    const result = await service.acceptById('u', 'i');
+    expect(result.membership.id).toBe('m');
+    expect(db.businessInvite.findUnique).toHaveBeenCalledWith({
+      where: { id: 'i' },
+      include: { role: true },
+    });
+  });
+  it('does not allow a different customer to accept by ID', async () => {
+    db.user.findUnique.mockResolvedValue({
+      email: 'other@example.com',
+      emailVerifiedAt: new Date(),
+      status: 'active',
+    });
+    await expect(service.acceptById('other', 'i')).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(db.businessMember.create).not.toHaveBeenCalled();
+  });
+  it('lists only invitations for the signed-in customer email without exposing tokens', async () => {
+    db.user.findUniqueOrThrow.mockResolvedValue({ email: 'ada@example.com' });
+    db.businessInvite.findMany.mockResolvedValue([
+      { id: 'i', status: 'pending', expiresAt: new Date(0) },
+    ]);
+    const result = await service.personalList('u');
+    const query = db.businessInvite.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({ email: 'ada@example.com' });
+    expect(query.select).not.toHaveProperty('tokenHash');
+    expect(result.items[0].status).toBe('expired');
   });
   it('rejects foreign employee references and email mismatch', async () => {
     db.businessEmployee.findUnique.mockResolvedValue(null);

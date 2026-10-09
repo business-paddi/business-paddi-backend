@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Prisma } from '../generated/prisma/client';
 import type { PrismaService } from '../src/database/prisma.service';
-import type { EmailService } from '../src/email/email.service';
+
 import { BusinessAccessService } from '../src/business/business-access.service';
 import { BusinessService } from '../src/business/business.service';
 import { EmployeeService } from '../src/business/employee.service';
@@ -62,17 +62,7 @@ async function main() {
           FRONTEND_URL: 'https://frontend.example.invalid',
           PAYROLL_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
         });
-        const tokens: string[] = [];
-        let failDelivery = false;
-        const mailer = {
-          sendBusinessInvitation: async (input: { url: string }) => {
-            if (failDelivery) throw new Error('Simulated delivery failure');
-            const token = new URL(input.url).searchParams.get('token');
-            assert.ok(token);
-            tokens.push(token);
-          },
-        } as unknown as EmailService;
-        const invites = new InviteService(database, access, mailer, config);
+        const invites = new InviteService(database, access);
         const employees = new EmployeeService(database, access, config);
         const businesses = new BusinessService(
           database,
@@ -178,8 +168,7 @@ async function main() {
         );
         check(
           'connection intent is stored and delivery accurately reported',
-          result.invitations[0].deliveryStatus === 'sent' &&
-            tokens.length === 1,
+          result.invitations[0].deliveryStatus === 'pending',
         );
         check(
           'invitation does not create membership before acceptance',
@@ -234,7 +223,7 @@ async function main() {
         );
         await rejects(
           'wrong verified email cannot accept invitation',
-          () => invites.accept(outsider.id, { token: tokens[0] }),
+          () => invites.acceptById(outsider.id, result.invitations[0].id),
           403,
         );
         await tx.user.update({
@@ -243,16 +232,17 @@ async function main() {
         });
         await rejects(
           'unverified invited identity cannot accept',
-          () => invites.accept(invitedUser.id, { token: tokens[0] }),
+          () => invites.acceptById(invitedUser.id, result.invitations[0].id),
           403,
         );
         await tx.user.update({
           where: { id: invitedUser.id },
           data: { emailVerifiedAt: new Date() },
         });
-        const accepted = await invites.accept(invitedUser.id, {
-          token: tokens[0],
-        });
+        const accepted = await invites.acceptById(
+          invitedUser.id,
+          result.invitations[0].id,
+        );
         check(
           'acceptance creates membership and links the existing employee',
           accepted.membership.role.key === 'employee' &&
@@ -264,7 +254,7 @@ async function main() {
         );
         await rejects(
           'accepted invitation cannot be replayed',
-          () => invites.accept(invitedUser.id, { token: tokens[0] }),
+          () => invites.acceptById(invitedUser.id, result.invitations[0].id),
           409,
         );
         await rejects(
@@ -397,7 +387,7 @@ async function main() {
           () => employees.tax(invitedUser.id, businessId, employeeId),
           403,
         );
-        failDelivery = true;
+
         const failed = await invites.create(owner.id, businessId, {
           email: outsider.email,
         });
@@ -405,27 +395,26 @@ async function main() {
           invites.create(owner.id, businessId, { email: outsider.email }),
         );
         check(
-          'member-only invitation records failure without membership creation',
-          failed.invitation.deliveryStatus === 'failed' &&
+          'member-only invitation stays pending without membership creation',
+          failed.invitation.deliveryStatus === 'pending' &&
             (await tx.businessMember.count({
               where: { businessId, userId: outsider.id },
             })) === 0,
         );
-        failDelivery = false;
+
         const resent = await invites.resend(
           owner.id,
           businessId,
           failed.invitation.id,
         );
         check(
-          'failed invitation can be resent',
-          resent.invitation.deliveryStatus === 'sent',
+          'resend leaves delivery pending',
+          resent.invitation.deliveryStatus === 'pending',
         );
         await invites.revoke(owner.id, businessId, failed.invitation.id);
         await rejects(
-          'revoked token cannot be accepted',
-          () =>
-            invites.accept(outsider.id, { token: tokens[tokens.length - 1] }),
+          'revoked invitation cannot be accepted',
+          () => invites.acceptById(outsider.id, failed.invitation.id),
           409,
         );
         const expired = await invites.create(owner.id, businessId, {
@@ -437,8 +426,7 @@ async function main() {
         });
         await rejects(
           'expired pending invitation cannot be accepted',
-          () =>
-            invites.accept(outsider.id, { token: tokens[tokens.length - 1] }),
+          () => invites.acceptById(outsider.id, expired.invitation.id),
           410,
         );
         await employees.archive(owner.id, businessId, employeeId);

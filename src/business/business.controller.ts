@@ -149,6 +149,13 @@ export class BusinessController {
   ) {
     return this.businesses.members(req.auth.userId, id);
   }
+  @Get(':businessId/members/:memberId') member(
+    @Req() req: AuthenticatedRequest,
+    @Param('businessId') businessId: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.businesses.member(req.auth.userId, businessId, memberId);
+  }
   @Get(':businessId/roles') roles(
     @Req() req: AuthenticatedRequest,
     @Param('businessId') id: string,
@@ -211,6 +218,19 @@ export class BusinessController {
 @UseFilters(BusinessErrorFilter)
 export class BusinessInviteController {
   constructor(private readonly invites: InviteService) {}
+  @Get()
+  @Header('Cache-Control', 'no-store')
+  list(@Req() req: AuthenticatedRequest) {
+    return this.invites.personalList(req.auth.userId);
+  }
+  @Post(':inviteId/accept')
+  @Header('Cache-Control', 'no-store')
+  acceptById(
+    @Req() req: AuthenticatedRequest,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.invites.acceptById(req.auth.userId, inviteId);
+  }
   @Post('accept')
   @Header('Cache-Control', 'no-store')
   accept(@Req() req: AuthenticatedRequest, @Body() body: AcceptInviteDto) {

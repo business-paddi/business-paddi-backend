@@ -21,6 +21,20 @@ model User {
   removedBusinessMembers      BusinessMember[] @relation("MemberRemover")
   businessInvites              BusinessInvite[]
   businessCreationRequests    BusinessCreationRequest[]
+  notifications               UserNotification[]
+}
+
+model UserNotification {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inviteId  String @unique
+  invite    BusinessInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  type      String @default("business_invite")
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
 }
 
 enum Status {

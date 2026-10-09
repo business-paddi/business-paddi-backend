@@ -10,12 +10,18 @@
  * docs/frontend-handoff.md Part C. Use X-Forwarded-For with a Nigerian IP
  * (e.g. 197.210.29.1) to check session city/region/country is populated.
  */
-import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  HttpStatus,
+  INestApplication,
+  RequestMethod,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/database/prisma.service';
+import { EmailService } from '../src/email/email.service';
 
 const NIGERIAN_IP = '197.210.29.1';
 const stamp = Date.now().toString(36);
@@ -31,10 +37,26 @@ describe('Auth (e2e, no email codes)', () => {
     process.env.TRUST_PROXY = '1';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(EmailService)
+      .useValue({
+        sendEmailVerification: async () => {},
+        sendLoginVerification: async () => {},
+        sendPasswordResetCode: async () => {},
+        sendSensitiveActionCode: async () => {},
+        sendEmailChangeVerification: async () => {},
+        sendEmailChangedNotice: async () => {},
+        sendPasswordResetNotice: async () => {},
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api', {
+      exclude: [
+        { path: '', method: RequestMethod.GET },
+        { path: 'health', method: RequestMethod.GET },
+      ],
+    });
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -48,8 +70,11 @@ describe('Auth (e2e, no email codes)', () => {
   }, 60000);
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { endsWith: '@yopmail.com' } } });
-    await app.close();
+    try {
+      if (prisma) await prisma.user.deleteMany({ where: { email } });
+    } finally {
+      if (app) await app.close();
+    }
   });
 
   it('GET /health returns ok', async () => {
@@ -58,18 +83,21 @@ describe('Auth (e2e, no email codes)', () => {
     });
   });
 
-  it('POST /api/auth/register is uniform (201, same message twice)', async () => {
+  it('POST /api/auth/register sends once and enforces the existing verification cooldown', async () => {
     const body = { email, name: 'E2E User', password };
     const first = await agent
       .post('/api/auth/register')
       .set('X-Forwarded-For', NIGERIAN_IP)
       .send(body)
       .expect(HttpStatus.CREATED);
-    expect(first.body.message).toContain('verification code has been sent');
-    const second = await agent.post('/api/auth/register').send(body).expect(
-      HttpStatus.CREATED,
+    expect((first.body as { message: string }).message).toContain(
+      'verification code has been sent',
     );
-    expect(second.body).toEqual(first.body);
+    const second = await agent
+      .post('/api/auth/register')
+      .send(body)
+      .expect(HttpStatus.TOO_MANY_REQUESTS);
+    expect((second.body as { statusCode: number }).statusCode).toBe(429);
   });
 
   it('POST /api/auth/register rejects unknown fields', async () => {
@@ -84,7 +112,9 @@ describe('Auth (e2e, no email codes)', () => {
       .post('/api/auth/login')
       .send({ email, password: 'Wrong-Password-1' })
       .expect(HttpStatus.UNAUTHORIZED);
-    expect(res.body.message).toBe('Invalid email or password');
+    expect((res.body as { message: string }).message).toBe(
+      'Invalid email or password',
+    );
   });
 
   it('POST /api/auth/login blocks unverified email with 403', async () => {
@@ -92,15 +122,17 @@ describe('Auth (e2e, no email codes)', () => {
       .post('/api/auth/login')
       .send({ email, password })
       .expect(HttpStatus.FORBIDDEN);
-    expect(res.body.message).toBe('Email verification is required');
+    expect((res.body as { message: string }).message).toBe(
+      'Email verification is required',
+    );
   });
 
-  it('POST /api/auth/email-verification/resend is uniform (202)', async () => {
+  it('POST /api/auth/email-verification/resend enforces delivery cooldown and accepts an unknown email uniformly', async () => {
     const res = await agent
       .post('/api/auth/email-verification/resend')
       .send({ email })
-      .expect(HttpStatus.ACCEPTED);
-    expect(res.body.message).toContain('unverified');
+      .expect(HttpStatus.TOO_MANY_REQUESTS);
+    expect((res.body as { statusCode: number }).statusCode).toBe(429);
     await agent
       .post('/api/auth/email-verification/resend')
       .send({ email: `nobody-${stamp}@yopmail.com` })
@@ -112,7 +144,7 @@ describe('Auth (e2e, no email codes)', () => {
       .post('/api/auth/password-reset/request')
       .send({ email })
       .expect(HttpStatus.ACCEPTED);
-    expect(res.body.challengeId).toMatch(
+    expect((res.body as { challengeId: string }).challengeId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
   });
@@ -121,10 +153,17 @@ describe('Auth (e2e, no email codes)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/auth/refresh')
       .expect(HttpStatus.UNAUTHORIZED);
-    expect(res.body.code).toBe('REFRESH_REJECTED');
+    expect((res.body as { code: string }).code).toBe('REFRESH_REJECTED');
   });
 
   it('guarded routes 401 without a session', async () => {
+    await request(app.getHttpServer())
+      .get('/api/businesses')
+      .expect(HttpStatus.UNAUTHORIZED);
+    await request(app.getHttpServer())
+      .post('/api/business-invites/accept')
+      .send({ token: 'a'.repeat(64) })
+      .expect(HttpStatus.UNAUTHORIZED);
     await request(app.getHttpServer())
       .get('/api/account/me')
       .expect(HttpStatus.UNAUTHORIZED);
@@ -140,6 +179,8 @@ describe('Auth (e2e, no email codes)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/auth/logout')
       .expect(HttpStatus.OK);
-    expect(res.body.message).toBe('Logged out successfully');
+    expect((res.body as { message: string }).message).toBe(
+      'Logged out successfully',
+    );
   });
 });

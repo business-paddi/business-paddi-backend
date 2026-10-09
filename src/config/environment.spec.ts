@@ -16,6 +16,17 @@ const BASE = {
 };
 
 describe('validateEnvironment', () => {
+  it('validates an optional payroll encryption key without blocking lightweight registration', () => {
+    expect(() =>
+      validateEnvironment({
+        ...BASE,
+        PAYROLL_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnvironment({ ...BASE, PAYROLL_ENCRYPTION_KEY: 'invalid' }),
+    ).toThrow('PAYROLL_ENCRYPTION_KEY');
+  });
   it('accepts a complete development environment', () => {
     expect(() => validateEnvironment({ ...BASE })).not.toThrow();
   });

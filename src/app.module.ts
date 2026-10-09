@@ -13,9 +13,11 @@ import { AuditModule } from './audit/audit.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
 import { SensitiveActionModule } from './sensitive-action/sensitive-action.module';
 import { validateEnvironment } from './config/environment';
+import { BusinessModule } from './business/business.module';
 
 @Module({
   imports: [
+    BusinessModule,
     OnboardingModule,
     UsersModule,
     AuthModule,

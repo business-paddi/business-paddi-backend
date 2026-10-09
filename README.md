@@ -55,7 +55,7 @@ See `.env.example` for the full list. Auth-critical keys: `DATABASE_URL`,
   plumbing; `src/rate-limit`, `src/email`, `src/location`, `src/redis`,
   `src/database`, `src/config`, `src/common` — infrastructure
 - `prisma/schema/` — database schema; `prisma/migrations/` — migrations
-- `docs/frontend-handoff.md` — endpoint contract + flows for the frontend
+- `docs/BUSINESS_FRONTEND_HANDOFF.md` — business endpoint contract and frontend integration notes
 
 ## License
 

@@ -10,9 +10,11 @@ import { AccessTokenGuard } from '../auth-guard/access-token.guard';
 import { LocationService } from '../location/location.service';
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
+import type { Server } from 'node:http';
+import type { Application } from 'express';
 
 describe('Session location diagnostics', () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
   const context = {
     requestMetadata: { ipAddress: '197.210.29.1' },
     location: { city: 'Lagos', region: 'Lagos', country: 'Nigeria' },
@@ -31,7 +33,9 @@ describe('Session location diagnostics', () => {
       .overrideGuard(AccessTokenGuard)
       .useValue({
         canActivate(execution: ExecutionContext) {
-          const req = execution.switchToHttp().getRequest<{ headers: Record<string, string> }>();
+          const req = execution
+            .switchToHttp()
+            .getRequest<{ headers: Record<string, string> }>();
           if (req.headers['x-test-auth'] !== 'authenticated') {
             throw new UnauthorizedException();
           }
@@ -41,7 +45,7 @@ describe('Session location diagnostics', () => {
       .compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api');
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    (app.getHttpAdapter().getInstance() as Application).set('trust proxy', 1);
     await app.init();
   });
 
@@ -68,6 +72,8 @@ describe('Session location diagnostics', () => {
       resolvedIp: '197.210.29.1',
       location: context.location,
     });
-    expect(response.body.socketIp).toEqual(expect.any(String));
+    expect((response.body as { socketIp: string }).socketIp).toEqual(
+      expect.any(String),
+    );
   });
 });

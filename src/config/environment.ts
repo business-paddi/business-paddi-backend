@@ -27,6 +27,17 @@ export function validateEnvironment(input: Environment): Environment {
   validateUrl(environment.GOOGLE_REDIRECT_URL, 'GOOGLE_REDIRECT_URL');
   if (environment.FRONTEND_URL)
     validateUrl(environment.FRONTEND_URL, 'FRONTEND_URL');
+  if (environment.PAYROLL_ENCRYPTION_KEY) {
+    const key = Buffer.from(environment.PAYROLL_ENCRYPTION_KEY, 'base64');
+    if (
+      key.length !== 32 ||
+      key.toString('base64') !== environment.PAYROLL_ENCRYPTION_KEY
+    ) {
+      throw new Error(
+        'PAYROLL_ENCRYPTION_KEY must be a canonical base64-encoded 32-byte key',
+      );
+    }
+  }
 
   if (environment.NODE_ENV === 'production') {
     requireValue(environment, 'FRONTEND_URL');

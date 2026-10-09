@@ -1,20 +1,26 @@
 model User {
-  id                String             @id @default(cuid())
-  email             String             @unique
-  name              String             @db.VarChar(40)
-  avatar            String?
-  bio               String?
-  username          String?            @unique
-  emailVerifiedAt   DateTime?          @db.Timestamptz(3)
-  status            Status             @default(active)
-  passwordHash      String?
-  preferences       UserPreference?
-  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
-  sessions      UserSession[]
-  authProviders AuthProvider[]
-  onboardingDraft OnboardingDraft?
-  businesses      Business[]
+  id                          String           @id @default(cuid())
+  email                       String           @unique
+  name                        String           @db.VarChar(40)
+  avatar                      String?
+  bio                         String?
+  username                    String?          @unique
+  emailVerifiedAt             DateTime?        @db.Timestamptz(3)
+  status                      Status           @default(active)
+  passwordHash                String?
+  preferences                 UserPreference?
+  createdAt                   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime         @updatedAt @db.Timestamptz(3)
+  sessions                    UserSession[]
+  authProviders               AuthProvider[]
+  onboardingDraft             OnboardingDraft?
+  businessMemberships         BusinessMember[] @relation("MemberUser")
+  invitedBusinessMembers      BusinessMember[] @relation("MemberInviter")
+  businessMemberRoleChanges   BusinessMember[] @relation("MemberRoleUpdater")
+  businessMemberStatusChanges BusinessMember[] @relation("MemberStatusUpdater")
+  removedBusinessMembers      BusinessMember[] @relation("MemberRemover")
+  businessInvites              BusinessInvite[]
+  businessCreationRequests    BusinessCreationRequest[]
 }
 
 enum Status {
@@ -31,11 +37,11 @@ model UserPreference {
   desktopNotifications Boolean @default(true)
   twoFactorEnabled     Boolean @default(false)
 
-  onboardingUseCases       String[] @default([])
-  onboardingUsage          String? @db.VarChar(20)
-  onboardingReferralSource String? @db.VarChar(40)
-  onboardingReferralDetails String? @db.VarChar(200)
-  onboardingCompletedAt    DateTime? @db.Timestamptz(3)
+  onboardingUseCases        String[]  @default([])
+  onboardingUsage           String?   @db.VarChar(20)
+  onboardingReferralSource  String?   @db.VarChar(40)
+  onboardingReferralDetails String?   @db.VarChar(200)
+  onboardingCompletedAt     DateTime? @db.Timestamptz(3)
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)

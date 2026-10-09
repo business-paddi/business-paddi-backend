@@ -1,0 +1,331 @@
+enum BusinessStatus {
+  active
+  suspended
+  archived
+}
+
+enum BusinessMemberStatus {
+  active
+  suspended
+  removed
+}
+
+enum RoleType {
+  system
+  custom
+}
+
+enum RecordStatus {
+  active
+  archived
+}
+
+enum EmployeeStatus {
+  active
+  suspended
+  on_leave
+  archived
+}
+
+enum AccountVerificationStatus {
+  unverified
+  verified
+  failed
+  stale
+}
+
+enum VerificationJobStatus {
+  pending
+  processing
+  retrying
+  completed
+  exhausted
+}
+
+enum VerificationMode {
+  demo
+  live
+}
+
+enum PayFrequency {
+  weekly
+  bi_weekly @map("bi-weekly")
+  monthly
+  one_time
+}
+
+enum PaymentStatus {
+  payable
+  blocked
+}
+
+model Business {
+  id           String         @id @default(cuid())
+  name         String         @db.VarChar(100)
+  description  String?
+  status       BusinessStatus @default(active)
+  country      String         @default("NG") @db.Char(2)
+  profileImage String?
+  industry     String?        @db.VarChar(100)
+  // Preserve the old address field and its data for compatibility.
+  address      String?        @db.VarChar(500)
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+
+  members        BusinessMember[]
+  employees      BusinessEmployee[]
+  roles          Role[]
+  employeeTypes  EmployeeType[]
+  employeeGroups EmployeeGroup[]
+  taxProfiles    EmployeeTaxProfile[]
+  invites        StaffInvite[]
+  businessInvites BusinessInvite[]
+  creationRequests BusinessCreationRequest[]
+}
+
+model Role {
+  id                String                 @id @default(cuid())
+  businessId        String?
+  business          Business?              @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  name              String                 @db.VarChar(100)
+  key               String                 @db.VarChar(64)
+  type              RoleType
+  status            RecordStatus           @default(active)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(3)
+  permissions       RolePermission[]
+  deniedPermissions RoleDeniedPermission[]
+  members           BusinessMember[]
+  invites           BusinessInvite[]
+  // SQL migration adds a partial unique index for global system-role keys.
+
+  @@unique([businessId, key])
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  permission   String     @db.VarChar(100)
+  catalogEntry Permission @relation(fields: [permission], references: [key], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([roleId, permission])
+}
+
+model RoleDeniedPermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  permission   String     @db.VarChar(100)
+  catalogEntry Permission @relation(fields: [permission], references: [key], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([roleId, permission])
+}
+
+model Permission {
+  key     String                 @id @db.VarChar(100)
+  grants  RolePermission[]
+  denials RoleDeniedPermission[]
+}
+
+model BusinessMember {
+  id                    String               @id @default(cuid())
+  businessId            String
+  business              Business             @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  userId                String
+  user                  User                 @relation("MemberUser", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  roleId                String
+  role                  Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status                BusinessMemberStatus @default(active)
+  invitedByUserId       String?
+  invitedBy             User?                @relation("MemberInviter", fields: [invitedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  roleUpdatedByUserId   String?
+  roleUpdatedBy         User?                @relation("MemberRoleUpdater", fields: [roleUpdatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  roleUpdatedAt         DateTime?            @db.Timestamptz(3)
+  statusUpdatedByUserId String?
+  statusUpdatedBy       User?                @relation("MemberStatusUpdater", fields: [statusUpdatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  statusUpdatedAt       DateTime?            @db.Timestamptz(3)
+  removedByUserId       String?
+  removedBy             User?                @relation("MemberRemover", fields: [removedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  removedAt             DateTime?            @db.Timestamptz(3)
+  createdAt             DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime             @updatedAt @db.Timestamptz(3)
+  employee              BusinessEmployee?
+
+  @@unique([businessId, userId])
+  @@unique([businessId, id])
+  @@index([userId, status])
+  @@index([businessId, status])
+  @@index([roleId])
+}
+
+model EmployeeType {
+  id          String             @id @default(cuid())
+  businessId  String
+  business    Business           @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  name        String             @db.VarChar(100)
+  key         String             @db.VarChar(64)
+  description String?
+  status      RecordStatus       @default(active)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(3)
+  employees   BusinessEmployee[]
+
+  @@unique([businessId, key])
+  @@unique([businessId, id])
+}
+
+model EmployeeGroup {
+  id          String                  @id @default(cuid())
+  businessId  String
+  business    Business                @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  name        String                  @db.VarChar(100)
+  description String?
+  status      RecordStatus            @default(active)
+  createdAt   DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                @updatedAt @db.Timestamptz(3)
+  employees   BusinessEmployeeGroup[]
+
+  @@unique([businessId, name])
+  @@unique([businessId, id])
+}
+
+model BusinessEmployee {
+  id                               String                    @id @default(cuid())
+  businessId                       String
+  business                         Business                  @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  businessMemberId                 String?
+  businessMember                   BusinessMember?           @relation(fields: [businessId, businessMemberId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  employeeTypeId                   String?
+  employeeType                     EmployeeType?             @relation(fields: [businessId, employeeTypeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  managerEmployeeId                String?
+  managerEmployee                  BusinessEmployee?         @relation("EmployeeManager", fields: [businessId, managerEmployeeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  managedEmployees                 BusinessEmployee[]        @relation("EmployeeManager")
+  state                            String?                   @db.VarChar(100)
+  fullName                         String                    @db.VarChar(200)
+  email                            String?                   @db.VarChar(254)
+  jobTitle                         String?                   @db.VarChar(100)
+  bankCode                         String?                   @db.VarChar(30)
+  bankName                         String?                   @db.VarChar(100)
+  // Sensitive values are AES-GCM envelopes, never plaintext (SQL-enforced).
+  accountNumber                    String?
+  accountName                      String?
+  accountVerificationStatus        AccountVerificationStatus @default(unverified)
+  verificationJobStatus            VerificationJobStatus     @default(pending)
+  verificationMode                 VerificationMode?
+  verificationAttemptCount         Int                       @default(0)
+  accountVerifiedAt                DateTime?                 @db.Timestamptz(3)
+  accountVerificationFailureReason String?
+  lastAccountValidationAt          DateTime?                 @db.Timestamptz(3)
+  nextVerificationAttemptAt        DateTime?                 @db.Timestamptz(3)
+  amount                           Decimal?                  @db.Decimal(18, 2)
+  payFrequency                     PayFrequency              @default(monthly)
+  totalAmountPaid                  Decimal                   @default(0) @db.Decimal(18, 2)
+  currency                         String                    @default("NGN") @db.Char(3)
+  lastPaidAt                       DateTime?                 @db.Timestamptz(3)
+  paymentStatus                    PaymentStatus             @default(blocked)
+  paymentBlockedReason             String?
+  status                           EmployeeStatus            @default(active)
+  createdAt                        DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                        DateTime                  @updatedAt @db.Timestamptz(3)
+  groups                           BusinessEmployeeGroup[]
+  taxProfile                       EmployeeTaxProfile?
+  invites                          BusinessInvite[]
+
+  @@unique([businessId, id])
+  @@unique([businessId, businessMemberId])
+  @@index([businessId, status])
+  @@index([businessId, managerEmployeeId])
+  @@index([businessId, employeeTypeId])
+  @@index([verificationJobStatus, nextVerificationAttemptAt])
+}
+
+enum BusinessInviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+model BusinessCreationRequest {
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  key String @db.VarChar(80)
+  requestHash String @db.Char(64)
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  result Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([userId, key])
+}
+
+enum InviteDeliveryStatus {
+  pending
+  sent
+  failed
+}
+
+model BusinessInvite {
+  id              String @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  email           String @db.VarChar(254)
+  employeeId      String?
+  employee        BusinessEmployee? @relation(fields: [businessId, employeeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  roleId          String
+  role            Role @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  invitedByUserId  String
+  invitedBy       User @relation(fields: [invitedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status          BusinessInviteStatus @default(pending)
+  tokenHash       String @unique @db.Char(64)
+  deliveryStatus  InviteDeliveryStatus @default(pending)
+  deliveryAttempts Int @default(0)
+  expiresAt       DateTime @db.Timestamptz(3)
+  acceptedAt      DateTime? @db.Timestamptz(3)
+  revokedAt       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([businessId, status])
+}
+
+model BusinessEmployeeGroup {
+  businessId String
+  employeeId String
+  groupId    String
+  employee   BusinessEmployee @relation(fields: [businessId, employeeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  group      EmployeeGroup    @relation(fields: [businessId, groupId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@id([businessId, employeeId, groupId])
+  @@index([businessId, groupId])
+}
+
+model EmployeeTaxProfile {
+  id                              String           @id @default(cuid())
+  businessId                      String
+  business                        Business         @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  employeeId                      String           @unique
+  employee                        BusinessEmployee @relation(fields: [businessId, employeeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  // Sensitive identifiers use the same encrypted envelope as bank fields.
+  taxIdentificationNumber         String?
+  taxResidenceState               String?          @db.VarChar(100)
+  taxResidenceCountry             String           @default("NG") @db.Char(2)
+  employmentStartDate             DateTime?        @db.Date
+  employmentEndDate               DateTime?        @db.Date
+  taxResidencyStatus              String?          @db.VarChar(50)
+  pensionFundAdministrator        String?          @db.VarChar(200)
+  pensionAccountNumber            String?
+  // Percentage points (0..100), not fractional multipliers; no statutory defaults.
+  pensionContributionRate         Decimal?         @db.Decimal(7, 4)
+  employerPensionContributionRate Decimal?         @db.Decimal(7, 4)
+  nhfApplicable                   Boolean?
+  nhisApplicable                  Boolean?
+  taxExemptionStatus              String?          @db.VarChar(50)
+  taxExemptionReason              String?
+  additionalTaxInformation        Json?
+  createdAt                       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                       DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@unique([businessId, employeeId])
+  @@index([businessId])
+}

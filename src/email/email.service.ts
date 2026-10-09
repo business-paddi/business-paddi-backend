@@ -53,6 +53,26 @@ export class EmailService {
     this.from = configService.getOrThrow<string>('RESEND_FROM_EMAIL');
   }
 
+  async sendBusinessInvitation(input: {
+    to: string;
+    url: string;
+    idempotencyKey: string;
+  }): Promise<void> {
+    const { error } = await this.resend.emails.send(
+      {
+        from: this.from,
+        to: input.to,
+        subject: 'Your Business Paddi business invitation',
+        text: `You have been invited to a business on Business Paddi. Sign in with this email address and accept your invitation: ${input.url}\nThis invitation expires in seven days. If you were not expecting it, you can ignore it.`,
+      },
+      { idempotencyKey: input.idempotencyKey },
+    );
+    if (error)
+      throw new ServiceUnavailableException(
+        'Unable to send the invitation email',
+      );
+  }
+
   async sendEmailVerification(
     input: SendEmailVerificationInput,
   ): Promise<void> {

@@ -15,7 +15,7 @@ import {
   UpdateEmployeeDto,
   TaxProfileDto,
 } from './business.dto';
-import { employeeResponse } from './business.responses';
+import { EMPLOYEE_INCLUDE, employeeResponse } from './business.responses';
 import {
   decryptPayrollField,
   encryptPayrollField,
@@ -36,6 +36,7 @@ export class EmployeeService {
   ) {
     const employee = await db.businessEmployee.findUnique({
       where: { businessId_id: { businessId, id: employeeId } },
+      include: EMPLOYEE_INCLUDE,
     });
     if (!employee) throw new NotFoundException('Employee not found');
     return employee;
@@ -79,6 +80,7 @@ export class EmployeeService {
     await this.validType(db, businessId, input.employeeTypeId);
     const { fullName, email, state, employeeTypeId, ...options } = input;
     const employee = await db.businessEmployee.create({
+      include: EMPLOYEE_INCLUDE,
       data: {
         fullName,
         email,
@@ -122,6 +124,7 @@ export class EmployeeService {
     };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.businessEmployee.findMany({
+        include: EMPLOYEE_INCLUDE,
         where,
         orderBy: [{ [query.sortBy]: query.sortOrder }, { id: 'asc' }],
         skip: (query.page - 1) * query.pageSize,
@@ -242,6 +245,7 @@ export class EmployeeService {
     )
       delete data.accountNumber;
     const employee = await db.businessEmployee.update({
+      include: EMPLOYEE_INCLUDE,
       where: { businessId_id: { businessId, id: employeeId } },
       data,
     });
@@ -264,6 +268,7 @@ export class EmployeeService {
       await this.access.lock(userId, businessId, ['employees:archive'], db);
       await this.find(db, businessId, employeeId);
       const employee = await db.businessEmployee.update({
+        include: EMPLOYEE_INCLUDE,
         where: { businessId_id: { businessId, id: employeeId } },
         data: {
           status: 'archived',

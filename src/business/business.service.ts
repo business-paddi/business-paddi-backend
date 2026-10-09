@@ -140,17 +140,12 @@ export class BusinessService {
               result: json(response),
             },
           });
-        return { response, deliveries };
+        return { response };
       },
       { maxWait: 15000, timeout: 120000 },
     );
     if ('replay' in result) return result.replay;
-    const invitations = [] as Awaited<ReturnType<InviteService['deliver']>>[];
-    for (const delivery of result.deliveries)
-      invitations.push(await this.invites.deliver(delivery));
-    // Replays deliberately retain the committed snapshot with delivery=pending;
-    // GET invites is the authoritative delivery/lifecycle state after email dispatch.
-    return { ...result.response, invitations };
+    return result.response;
   }
 
   async list(userId: string) {
@@ -295,6 +290,62 @@ export class BusinessService {
     });
     return {
       items: members.map((m) => ({ ...m, role: roleResponse(m.role) })),
+    };
+  }
+  async member(userId: string, businessId: string, memberId: string) {
+    const access = await this.access.require(userId, businessId, [
+      'members:view',
+    ]);
+    const member = await this.prisma.businessMember.findUnique({
+      where: { businessId_id: { businessId, id: memberId } },
+      include: {
+        user: { select: { id: true, name: true, avatar: true, email: true } },
+        role: { include: ROLE_INCLUDE },
+        employee: {
+          select: {
+            id: true,
+            employeeType: { select: { id: true, name: true, key: true } },
+            managerEmployee: { select: { id: true, fullName: true } },
+            groups: { select: { group: { select: { id: true, name: true } } } },
+          },
+        },
+      },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+    const canViewEmployee =
+      access.permissions.includes('employees:view') ||
+      (access.permissions.includes('employees:view_own') &&
+        member.id === access.member.id);
+    const canViewFinancials =
+      canViewEmployee && access.permissions.includes('employees:update');
+    const canViewTax =
+      access.permissions.includes('employees:view') &&
+      access.permissions.includes('employees:update');
+    const { employee: linkedEmployee, role, ...profile } = member;
+    const employee =
+      linkedEmployee && canViewEmployee
+        ? (await this.employees.get(userId, businessId, linkedEmployee.id))
+            .employee
+        : null;
+    const taxProfile =
+      linkedEmployee && canViewTax
+        ? (await this.employees.tax(userId, businessId, linkedEmployee.id))
+            .taxProfile
+        : null;
+    return {
+      member: { ...profile, role: roleResponse(role) },
+      hasEmployee: linkedEmployee !== null,
+      employee:
+        employee && linkedEmployee
+          ? {
+              ...employee,
+              employeeType: linkedEmployee.employeeType,
+              managerEmployee: linkedEmployee.managerEmployee,
+              groups: linkedEmployee.groups.map((entry) => entry.group),
+            }
+          : null,
+      taxProfile,
+      access: { canViewEmployee, canViewFinancials, canViewTax },
     };
   }
   async roles(userId: string, businessId: string, roleId?: string) {

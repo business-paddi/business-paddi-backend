@@ -6,11 +6,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, BusinessInvite } from '../../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { EmailService } from '../email/email.service';
+
 import { BusinessAccessService, ROLE_INCLUDE } from './business-access.service';
 import { AcceptInviteDto, InviteDto } from './business.dto';
 import {
@@ -28,8 +28,6 @@ export class InviteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: BusinessAccessService,
-    private readonly email: EmailService,
-    private readonly config: ConfigService,
   ) {}
 
   async record(
@@ -80,8 +78,8 @@ export class InviteService {
           'Employee must be unlinked with the same email in this business',
         );
     }
-    const account = await db.user.findFirst({
-      where: { email: { equals: input.email, mode: 'insensitive' } },
+    const account = await db.user.findUnique({
+      where: { email: input.email },
       select: { id: true },
     });
     if (account) {
@@ -109,6 +107,8 @@ export class InviteService {
       data: { status: 'expired' },
     });
     const token = randomBytes(32).toString('hex');
+    // No email job exists yet. A future worker must generate and persist a fresh
+    // token hash when sending; this raw token is not retained for later delivery.
     const invite = await db.businessInvite.create({
       data: {
         businessId,
@@ -117,56 +117,23 @@ export class InviteService {
         roleId: role.id,
         invitedByUserId: userId,
         tokenHash: tokenHash(token),
+        deliveryStatus: 'pending',
         expiresAt: new Date(Date.now() + 7 * 86400000),
       },
     });
+    if (account) {
+      await db.userNotification.create({
+        data: { userId: account.id, inviteId: invite.id },
+      });
+    }
     return { invite, token };
   }
 
-  async deliver(delivery: Delivery) {
-    let status: 'sent' | 'failed' = 'failed';
-    try {
-      const frontend = this.config.get<string>('FRONTEND_URL');
-      if (!frontend) throw new Error('Missing frontend URL');
-      const url = new URL('/business-invites/accept', frontend);
-      url.searchParams.set('token', delivery.token);
-      await this.email.sendBusinessInvitation({
-        to: delivery.invite.email,
-        url: url.toString(),
-        idempotencyKey: `business-invite-${delivery.invite.id}-${delivery.invite.tokenHash}`,
-      });
-      status = 'sent';
-    } catch {
-      // Do not log provider errors: they can contain the message and raw token.
-    }
-    try {
-      await this.prisma.businessInvite.updateMany({
-        where: {
-          id: delivery.invite.id,
-          tokenHash: delivery.invite.tokenHash,
-          status: 'pending',
-        },
-        data: { deliveryStatus: status, deliveryAttempts: { increment: 1 } },
-      });
-      const stored = await this.prisma.businessInvite.findUniqueOrThrow({
-        where: { id: delivery.invite.id },
-        select: INVITE_SELECT,
-      });
-      return stored;
-    } catch {
-      // Intent is already durable even if delivery bookkeeping fails after commit.
-      // A pending status means unknown, never a promise that an email was dispatched.
-      return {
-        ...inviteResponse(delivery.invite),
-        deliveryStatus: 'pending' as const,
-      };
-    }
-  }
   async create(userId: string, businessId: string, input: InviteDto) {
     const delivery = await this.prisma.$transaction((db) =>
       this.record(db, userId, businessId, input),
     );
-    return { invitation: await this.deliver(delivery) };
+    return { invitation: inviteResponse(delivery.invite) };
   }
   async list(userId: string, businessId: string) {
     return this.prisma.$transaction(async (db) => {
@@ -226,16 +193,58 @@ export class InviteService {
       });
       return { invite: updated, token };
     });
-    return { invitation: await this.deliver(delivery) };
+    return { invitation: inviteResponse(delivery.invite) };
   }
 
-  async accept(userId: string, input: AcceptInviteDto) {
-    const hash = tokenHash(input.token);
+  async personalList(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    return {
+      items: await this.prisma.businessInvite
+        .findMany({
+          where: { email: user.email.trim().toLowerCase() },
+          select: {
+            ...INVITE_SELECT,
+            business: { select: { id: true, name: true, profileImage: true } },
+            role: { select: { id: true, name: true, key: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+        .then((items) =>
+          items.map((invite) => ({
+            ...invite,
+            status:
+              invite.status === 'pending' && invite.expiresAt <= new Date()
+                ? ('expired' as const)
+                : invite.status,
+          })),
+        ),
+    };
+  }
+
+  accept(userId: string, input: AcceptInviteDto) {
+    return this.acceptInvitation(userId, { tokenHash: tokenHash(input.token) });
+  }
+
+  acceptById(userId: string, inviteId: string) {
+    return this.acceptInvitation(userId, { id: inviteId });
+  }
+
+  private async acceptInvitation(
+    userId: string,
+    where: Prisma.BusinessInviteWhereUniqueInput,
+  ) {
     return this.prisma.$transaction(
       async (db) => {
-        await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "tokenHash" = ${hash} FOR UPDATE`;
+        if (where.id) {
+          await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "id" = ${where.id} FOR UPDATE`;
+        } else {
+          await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "tokenHash" = ${where.tokenHash} FOR UPDATE`;
+        }
         const invite = await db.businessInvite.findUnique({
-          where: { tokenHash: hash },
+          where,
           include: { role: true },
         });
         if (!invite) throw new BadRequestException('Invalid invitation token');

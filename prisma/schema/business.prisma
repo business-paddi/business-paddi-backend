@@ -265,6 +265,7 @@ enum InviteDeliveryStatus {
 }
 
 model BusinessInvite {
+  notification UserNotification?
   id              String @id @default(cuid())
   businessId      String
   business        Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -286,6 +287,7 @@ model BusinessInvite {
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([businessId, status])
+  @@index([email, createdAt])
 }
 
 model BusinessEmployeeGroup {

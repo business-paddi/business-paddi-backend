@@ -8,6 +8,7 @@ import {
 } from './business.controller';
 import { BusinessService } from './business.service';
 import { EmployeeService } from './employee.service';
+import { EMPLOYEE_INCLUDE } from './business.responses';
 import { InviteService } from './invite.service';
 import { AccessTokenGuard } from '../auth-guard/access-token.guard';
 import { BusinessAccessService } from './business-access.service';
@@ -16,7 +17,6 @@ import {
   allowedPermissions,
   systemRolePermissions,
 } from '../business-foundation/permission-catalog';
-import { EmailService } from '../email/email.service';
 import { createHash, randomBytes } from 'node:crypto';
 import type { EmployeeDto, OnboardDto } from './business.dto';
 import type { Server } from 'node:http';
@@ -46,8 +46,14 @@ describe('Business HTTP contracts', () => {
     list: jest.fn(),
     get: jest.fn(),
     update: jest.fn(),
+    member: jest.fn(),
   };
-  const invites = { accept: jest.fn(), create: jest.fn() };
+  const invites = {
+    accept: jest.fn(),
+    create: jest.fn(),
+    personalList: jest.fn(),
+    acceptById: jest.fn(),
+  };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [BusinessController, BusinessInviteController],
@@ -201,6 +207,18 @@ describe('Business HTTP contracts', () => {
       .send({ token: 'bad' })
       .expect(400);
   });
+  it('routes member profiles with business and member IDs', async () => {
+    businesses.member.mockResolvedValue({
+      member: { id: 'm' },
+      employee: null,
+    });
+    const result = await request(app.getHttpServer())
+      .get('/api/businesses/b/members/m')
+      .expect(200);
+    expect(result.body.member.id).toBe('m');
+    expect(businesses.member).toHaveBeenCalledWith('current-user', 'b', 'm');
+    expect(result.headers['cache-control']).toBe('no-store');
+  });
   it('has no ownership-transfer route or writable owner field', async () => {
     await request(app.getHttpServer())
       .patch('/api/businesses/b')
@@ -350,6 +368,7 @@ describe('Employee persistence contracts', () => {
   it('creates no membership, bank verification or tax profile and omits amount', async () => {
     await service.create('u', 'b', minimal);
     expect(db.businessEmployee.create).toHaveBeenCalledWith({
+      include: EMPLOYEE_INCLUDE,
       data: {
         ...minimal,
         businessId: 'b',
@@ -357,6 +376,30 @@ describe('Employee persistence contracts', () => {
       },
     });
     expect(db.employeeTaxProfile.upsert).not.toHaveBeenCalled();
+  });
+  it('returns the linked member with user name, avatar and email', async () => {
+    const businessMember = {
+      id: 'm',
+      user: {
+        name: 'Ada',
+        avatar: 'https://example.com/ada.png',
+        email: 'ada@example.com',
+      },
+    };
+    db.businessEmployee.update.mockResolvedValue({
+      ...stored,
+      businessMemberId: 'm',
+      businessMember,
+    });
+    const result = await service.update('u', 'b', 'e', { jobTitle: 'Manager' });
+    expect(result.employee.businessMember).toEqual(businessMember);
+    expect(db.businessEmployee.update).toHaveBeenCalledWith(
+      expect.objectContaining({ include: EMPLOYEE_INCLUDE }),
+    );
+  });
+  it('returns null for an employee without a linked member', async () => {
+    const result = await service.create('u', 'b', minimal);
+    expect(result.employee.businessMember).toBeNull();
   });
   it('rejects cross-business employee type before persistence', async () => {
     db.employeeType.findFirst.mockResolvedValue(null);
@@ -439,13 +482,10 @@ describe('Invitation identity and delivery', () => {
       fn(db),
     ),
   } as unknown as PrismaService;
-  const email = { sendBusinessInvitation: jest.fn() };
   const access = { lock: jest.fn() };
   const service = new InviteService(
     prisma,
     access as unknown as BusinessAccessService,
-    email as unknown as EmailService,
-    new ConfigService({ FRONTEND_URL: 'https://example.com' }),
   );
   beforeEach(() => {
     jest.clearAllMocks();
@@ -486,21 +526,5 @@ describe('Invitation identity and delivery', () => {
       status: 403,
     });
     expect(access.lock).not.toHaveBeenCalled();
-  });
-  it('reports failed delivery without returning the token or its hash', async () => {
-    email.sendBusinessInvitation.mockRejectedValue(
-      new Error('provider failed'),
-    );
-    db.businessInvite.findUniqueOrThrow.mockResolvedValue({
-      id: 'i',
-      deliveryStatus: 'failed',
-    });
-    const result = await service.deliver({ invite: invite as never, token });
-    expect(result).toEqual({ id: 'i', deliveryStatus: 'failed' });
-    expect(db.businessInvite.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { deliveryStatus: 'failed', deliveryAttempts: { increment: 1 } },
-      }),
-    );
   });
 });

@@ -4,7 +4,21 @@ import type {
   Role,
   RolePermission,
   RoleDeniedPermission,
+  Prisma,
 } from '../../generated/prisma/client';
+export const EMPLOYEE_INCLUDE = {
+  businessMember: {
+    select: {
+      id: true,
+      user: { select: { name: true, avatar: true, email: true } },
+    },
+  },
+} as const satisfies Prisma.BusinessEmployeeInclude;
+
+type EmployeeWithMember = BusinessEmployee &
+  Partial<
+    Prisma.BusinessEmployeeGetPayload<{ include: typeof EMPLOYEE_INCLUDE }>
+  >;
 export const INVITE_SELECT = {
   id: true,
   businessId: true,
@@ -46,13 +60,14 @@ export function roleResponse(
   };
 }
 export function employeeResponse(
-  employee: BusinessEmployee,
+  employee: EmployeeWithMember,
   financial = false,
 ) {
   const base = {
     id: employee.id,
     businessId: employee.businessId,
     businessMemberId: employee.businessMemberId,
+    businessMember: employee.businessMember ?? null,
     fullName: employee.fullName,
     email: employee.email,
     state: employee.state,

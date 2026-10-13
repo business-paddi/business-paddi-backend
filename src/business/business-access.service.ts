@@ -57,6 +57,9 @@ export class BusinessAccessService {
     db: Prisma.TransactionClient,
   ) {
     await db.$queryRaw`SELECT m."id" FROM "BusinessMember" m JOIN "Role" r ON r."id" = m."roleId" JOIN "Business" b ON b."id" = m."businessId" WHERE m."businessId" = ${businessId} AND m."userId" = ${userId} FOR SHARE OF m, r, b`;
-    return this.require(userId, businessId, permissions, db);
+    const access = await this.require(userId, businessId, permissions, db);
+    // Transaction-local attribution for database-enforced audit/notification events.
+    await db.$queryRaw`SELECT set_config('business_paddi.actor_id', ${userId}, true)`;
+    return access;
   }
 }

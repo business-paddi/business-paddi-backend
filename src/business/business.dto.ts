@@ -58,17 +58,7 @@ export class UpdateBusinessDto {
   profileImage?: string | null;
 }
 
-class EmployeeOptionsDto {
-  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) jobTitle?:
-    string | null;
-  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(128) managerEmployeeId?:
-    string | null;
-  @ValidateIf(optional)
-  @IsArray()
-  @ArrayUnique()
-  @ArrayMaxSize(100)
-  @IsString({ each: true })
-  groupIds?: string[];
+export class EmployeePaymentDto {
   @IsOptional()
   @Transform(trim)
   @IsString()
@@ -95,6 +85,18 @@ class EmployeeOptionsDto {
   @IsIn(['weekly', 'bi-weekly', 'monthly', 'one_time'])
   payFrequency?: string;
   @ValidateIf(optional) @IsIn(['NGN']) currency?: string;
+}
+class EmployeeOptionsDto extends EmployeePaymentDto {
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) jobTitle?:
+    string | null;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(128) managerEmployeeId?:
+    string | null;
+  @ValidateIf(optional)
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  groupIds?: string[];
   @ValidateIf(optional) @IsIn(['active', 'suspended', 'on_leave']) status?:
     'active' | 'suspended' | 'on_leave';
 }
@@ -179,7 +181,7 @@ export class InviteDto {
 export class AcceptInviteDto {
   @Matches(/^[a-f0-9]{64}$/) token!: string;
 }
-export class TaxProfileDto {
+export class TaxProfileDto extends EmployeePaymentDto {
   @IsOptional()
   @Transform(trim)
   @IsString()

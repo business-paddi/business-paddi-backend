@@ -9,6 +9,9 @@ import {
 export class UpdatePreferencesDto {
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsBoolean()
+  sidebarMinimized?: boolean;
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsBoolean()
   desktopNotifications?: boolean;
 
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)

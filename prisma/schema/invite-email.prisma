@@ -1,0 +1,31 @@
+enum InviteEmailState {
+  pending
+  processing
+  sent
+  failed
+  cancelled
+  uncertain
+}
+
+// Transactional outbox and durable send record; Redis carries only this ID.
+model InviteEmailDelivery {
+  id String @id @default(cuid())
+  inviteId String
+  invite BusinessInvite @relation(fields: [inviteId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  generation Int
+  state InviteEmailState @default(pending)
+  payloadCiphertext String?
+  attempts Int @default(0)
+  firstAttemptAt DateTime? @db.Timestamptz(3)
+  nextAttemptAt DateTime @default(now()) @db.Timestamptz(3)
+  leaseId String?
+  leaseExpiresAt DateTime? @db.Timestamptz(3)
+  providerId String?
+  lastError String? @db.VarChar(100)
+  sentAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@unique([inviteId, generation])
+  @@index([state, nextAttemptAt])
+  @@index([state, leaseExpiresAt])
+}

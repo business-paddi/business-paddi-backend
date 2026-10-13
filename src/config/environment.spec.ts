@@ -16,6 +16,30 @@ const BASE = {
 };
 
 describe('validateEnvironment', () => {
+  it('validates invite worker settings and keeps the invite URL on the configured frontend origin', () => {
+    expect(() =>
+      validateEnvironment({ ...BASE, INVITE_EMAIL_ENABLED: 'sometimes' }),
+    ).toThrow('INVITE_EMAIL_ENABLED');
+    expect(() =>
+      validateEnvironment({
+        ...BASE,
+        INVITE_FRONTEND_PATH: '//another.example/path',
+      }),
+    ).toThrow('INVITE_FRONTEND_PATH');
+    expect(() =>
+      validateEnvironment({
+        ...BASE,
+        INVITE_FRONTEND_PATH: '/invite?redirect=bad',
+      }),
+    ).toThrow('INVITE_FRONTEND_PATH');
+    expect(() =>
+      validateEnvironment({
+        ...BASE,
+        INVITE_FRONTEND_PATH: '/dashboard/invitations',
+        INVITE_EMAIL_ENABLED: 'false',
+      }),
+    ).not.toThrow();
+  });
   it('validates an optional payroll encryption key without blocking lightweight registration', () => {
     expect(() =>
       validateEnvironment({

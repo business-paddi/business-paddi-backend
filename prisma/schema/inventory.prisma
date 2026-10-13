@@ -1,0 +1,187 @@
+model InventoryCategory {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  nameKey String @db.VarChar(100)
+  description String? @db.VarChar(2000)
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  products InventoryProduct[]
+  @@unique([businessId, id])
+  @@unique([businessId, nameKey])
+}
+
+model InventoryProduct {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  categoryId String
+  category InventoryCategory @relation(fields: [businessId, categoryId], references: [businessId, id], onDelete: Restrict)
+  name String @db.VarChar(200)
+  barcode String? @db.VarChar(100)
+  sku String? @db.VarChar(100)
+  description String? @db.VarChar(2000)
+  imageUrl String? @db.VarChar(2000)
+  packageWeightGrams Int?
+  purchaseCostMinor BigInt
+  sellingPriceMinor BigInt
+  availableQuantity Int @default(0)
+  lowStockThreshold Int @default(0)
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  movements InventoryMovement[]
+  shortages InventoryShortage[]
+  saleLines InventorySaleLine[]
+  receipts InventoryReceipt[]
+  @@unique([businessId, id])
+  @@unique([businessId, barcode])
+  @@index([businessId, categoryId])
+  @@index([businessId, createdAt, id])
+}
+
+model InventoryMovement {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  productId String?
+  product InventoryProduct? @relation(fields: [businessId, productId], references: [businessId, id], onDelete: Restrict)
+  categoryId String?
+  actorId String
+  actorName String @db.VarChar(200)
+  action String @db.VarChar(20)
+  summary String @db.VarChar(500)
+  quantityDelta Int @default(0)
+  quantityBefore Int?
+  quantityAfter Int?
+  purchaseCostBeforeMinor BigInt?
+  purchaseCostAfterMinor BigInt?
+  sellingPriceBeforeMinor BigInt?
+  sellingPriceAfterMinor BigInt?
+  thresholdBefore Int?
+  thresholdAfter Int?
+  reference String? @db.VarChar(200)
+  note String? @db.VarChar(2000)
+  saleId String?
+  receiptId String?
+  changes Json
+  priceChanged Boolean @default(false)
+  occurredAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([businessId, occurredAt, id])
+  @@index([businessId, productId, occurredAt, id])
+}
+
+model InventoryShortage {
+  id String @id @default(cuid())
+  businessId String
+  productId String
+  product InventoryProduct @relation(fields: [businessId, productId], references: [businessId, id], onDelete: Restrict)
+  classification String @db.VarChar(20)
+  threshold Int
+  minimumStock Int
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  @@index([businessId, productId, startedAt, id])
+}
+
+model InventoryCart {
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lines Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@id([businessId, userId])
+}
+
+model InventoryQuote {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lines Json
+  totalMinor BigInt
+  revision Int @default(1)
+  cartRevision Int
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([businessId, userId, expiresAt])
+}
+
+model InventoryReceipt {
+  id String @id @default(cuid())
+  businessId String
+  productId String
+  product InventoryProduct @relation(fields: [businessId, productId], references: [businessId, id], onDelete: Restrict)
+  quantity Int
+  purchaseCostMinor BigInt
+  supplier String? @db.VarChar(200)
+  reference String? @db.VarChar(200)
+  note String? @db.VarChar(2000)
+  actorId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  revision Int @default(1)
+}
+
+model InventorySale {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  number String @unique @db.VarChar(100)
+  businessName String @db.VarChar(100)
+  actorId String
+  actorName String @db.VarChar(200)
+  paymentMethod String @db.VarChar(20)
+  paymentStatus String @db.VarChar(30)
+  customerName String? @db.VarChar(200)
+  customerContact String? @db.VarChar(200)
+  currency String @default("NGN") @db.Char(3)
+  totalMinor BigInt
+  totalCostMinor BigInt
+  tenderMinor BigInt?
+  changeMinor BigInt
+  units Int
+  revision Int @default(1)
+  occurredAt DateTime @default(now()) @db.Timestamptz(3)
+  lines InventorySaleLine[]
+  @@unique([businessId, id])
+  @@index([businessId, occurredAt, id])
+}
+
+model InventorySaleLine {
+  id String @id @default(cuid())
+  businessId String
+  saleId String
+  sale InventorySale @relation(fields: [businessId, saleId], references: [businessId, id], onDelete: Restrict)
+  productId String
+  product InventoryProduct @relation(fields: [businessId, productId], references: [businessId, id], onDelete: Restrict)
+  productName String @db.VarChar(200)
+  categoryId String
+  categoryName String @db.VarChar(100)
+  barcode String?
+  sku String?
+  quantity Int
+  sellingPriceMinor BigInt
+  purchaseCostMinor BigInt
+  totalMinor BigInt
+  totalCostMinor BigInt
+  @@index([businessId, productId])
+}
+
+model InventoryOperation {
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  key String @db.VarChar(80)
+  userId String
+  scope String @db.VarChar(200)
+  requestHash String @db.Char(64)
+  result Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([businessId, key])
+}
+

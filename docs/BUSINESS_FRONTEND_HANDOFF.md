@@ -1,5 +1,9 @@
 # Business frontend integration handoff
 
+> For current email links, invitation details and authentication callbacks, read [EMAIL_AUTH_INVITE_FRONTEND_HANDOFF.md](EMAIL_AUTH_INVITE_FRONTEND_HANDOFF.md).
+
+> Invitation email delivery and membership approval have changed. Use [INVITE_EMAIL_AND_APPROVAL_HANDOFF.md](INVITE_EMAIL_AND_APPROVAL_HANDOFF.md) for current authority, delivery and acceptance contracts; it supersedes the corresponding sections below.
+
 ## Setup and deployment
 
 Run `npm ci`, `npx prisma generate`, `npx prisma migrate deploy`, and

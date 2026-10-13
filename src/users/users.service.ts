@@ -117,6 +117,13 @@ export class UsersService {
     }
   }
 
+  async getPreferences(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { preferences: { select: PUBLIC_PREFERENCES_SELECT } },
+    });
+    return toPublicPreferences(user.preferences);
+  }
   async updatePreferences(
     userId: string,
     userSessionId: string,
@@ -125,6 +132,7 @@ export class UsersService {
   ) {
     if (
       input.desktopNotifications === undefined &&
+      input.sidebarMinimized === undefined &&
       input.twoFactorEnabled === undefined
     ) {
       throw new BadRequestException('At least one preference is required');
@@ -159,10 +167,12 @@ export class UsersService {
         create: {
           userId,
           desktopNotifications: input.desktopNotifications,
+          sidebarMinimized: input.sidebarMinimized,
           twoFactorEnabled: input.twoFactorEnabled,
         },
         update: {
           desktopNotifications: input.desktopNotifications,
+          sidebarMinimized: input.sidebarMinimized,
           twoFactorEnabled: input.twoFactorEnabled,
         },
         select: PUBLIC_PREFERENCES_SELECT,
@@ -175,6 +185,9 @@ export class UsersService {
           userId,
           context,
           changes: {
+            ...(input.sidebarMinimized === undefined
+              ? {}
+              : { sidebarMinimized: input.sidebarMinimized }),
             ...(input.desktopNotifications === undefined
               ? {}
               : { desktopNotifications: input.desktopNotifications }),

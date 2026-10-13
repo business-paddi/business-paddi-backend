@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,8 +15,12 @@ import { AcceptInviteDto, InviteDto } from './business.dto';
 import {
   inviteResponse,
   INVITE_SELECT,
-  roleResponse,
+  PERSONAL_INVITE_SELECT,
 } from './business.responses';
+
+import { InviteAcceptanceService } from './invite-acceptance.service';
+import { InvitePermissionsService } from './invite-permissions.service';
+import { InviteEmailOutbox } from '../invite-email/invite-email-outbox.service';
 
 type Delivery = { invite: BusinessInvite; token: string };
 const tokenHash = (token: string) =>
@@ -28,6 +31,9 @@ export class InviteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: BusinessAccessService,
+    private readonly policy: InvitePermissionsService,
+    private readonly outbox: InviteEmailOutbox,
+    private readonly acceptance: InviteAcceptanceService,
   ) {}
 
   async record(
@@ -36,15 +42,15 @@ export class InviteService {
     businessId: string,
     input: InviteDto,
   ): Promise<Delivery> {
-    const access = await this.access.lock(
-      userId,
-      businessId,
-      ['members:invite'],
-      db,
-    );
-    const role = input.roleId
-      ? await db.role.findUnique({ where: { id: input.roleId } })
+    const access = await this.access.lock(userId, businessId, [], db);
+    this.policy.requireInviteControls(access.permissions);
+    let role = input.roleId
+      ? await db.role.findUnique({
+          where: { id: input.roleId },
+          include: ROLE_INCLUDE,
+        })
       : await db.role.findFirst({
+          include: ROLE_INCLUDE,
           where: {
             key: 'employee',
             type: 'system',
@@ -59,11 +65,13 @@ export class InviteService {
       (role.type === 'system' && role.key === 'owner')
     )
       throw new BadRequestException('Invalid invitation role');
-    if (
-      !(role.type === 'system' && role.key === 'employee') &&
-      !access.permissions.includes('roles:assign')
-    )
-      throw new ForbiddenException('Assigning this role requires roles:assign');
+    await db.$queryRaw`SELECT "id" FROM "Role" WHERE "id" = ${role.id} FOR SHARE`;
+    role = await db.role.findUniqueOrThrow({
+      where: { id: role.id },
+      include: ROLE_INCLUDE,
+    });
+    if (role.status !== 'active')
+      throw new BadRequestException('Invitation role is unavailable');
     if (input.employeeId) {
       const employee = await db.businessEmployee.findUnique({
         where: { businessId_id: { businessId, id: input.employeeId } },
@@ -88,7 +96,11 @@ export class InviteService {
         include: { role: true },
       });
       if (existing) {
-        if (existing.status === 'active' || existing.role.key === 'owner')
+        if (
+          existing.status === 'active' ||
+          existing.status === 'pending_approval' ||
+          existing.role.key === 'owner'
+        )
           throw new ConflictException(
             'Account already has a business membership',
           );
@@ -107,8 +119,6 @@ export class InviteService {
       data: { status: 'expired' },
     });
     const token = randomBytes(32).toString('hex');
-    // No email job exists yet. A future worker must generate and persist a fresh
-    // token hash when sending; this raw token is not retained for later delivery.
     const invite = await db.businessInvite.create({
       data: {
         businessId,
@@ -118,9 +128,12 @@ export class InviteService {
         invitedByUserId: userId,
         tokenHash: tokenHash(token),
         deliveryStatus: 'pending',
+        requiresApproval:
+          this.policy.missingGrants(access.permissions, role).length > 0,
         expiresAt: new Date(Date.now() + 7 * 86400000),
       },
     });
+    await this.outbox.record(db, invite);
     if (account) {
       await db.userNotification.create({
         data: { userId: account.id, inviteId: invite.id },
@@ -130,69 +143,113 @@ export class InviteService {
   }
 
   async create(userId: string, businessId: string, input: InviteDto) {
-    const delivery = await this.prisma.$transaction((db) =>
-      this.record(db, userId, businessId, input),
+    const delivery = await this.prisma.$transaction(
+      (db) => this.record(db, userId, businessId, input),
+      { maxWait: 15000, timeout: 30000 },
     );
     return { invitation: inviteResponse(delivery.invite) };
   }
   async list(userId: string, businessId: string) {
-    return this.prisma.$transaction(async (db) => {
-      await this.access.lock(userId, businessId, ['members:invite'], db);
-      await db.businessInvite.updateMany({
-        where: {
-          businessId,
-          status: 'pending',
-          expiresAt: { lte: new Date() },
-        },
-        data: { status: 'expired' },
-      });
-      return {
-        items: await db.businessInvite.findMany({
-          where: { businessId },
-          select: INVITE_SELECT,
-          orderBy: { createdAt: 'desc' },
-        }),
-      };
-    });
+    return this.prisma.$transaction(
+      async (db) => {
+        await this.access.lock(userId, businessId, ['members:invite'], db);
+        await db.businessInvite.updateMany({
+          where: {
+            businessId,
+            status: 'pending',
+            expiresAt: { lte: new Date() },
+          },
+          data: { status: 'expired' },
+        });
+        return {
+          items: await db.businessInvite.findMany({
+            where: { businessId },
+            select: INVITE_SELECT,
+            orderBy: { createdAt: 'desc' },
+          }),
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
   }
   async revoke(userId: string, businessId: string, inviteId: string) {
-    return this.prisma.$transaction(async (db) => {
-      await this.access.lock(userId, businessId, ['members:invite'], db);
-      const changed = await db.businessInvite.updateMany({
-        where: { id: inviteId, businessId, status: 'pending' },
-        data: { status: 'revoked', revokedAt: new Date() },
-      });
-      if (!changed.count)
-        throw new ConflictException(
-          'Invitation is missing or no longer pending',
-        );
-      return {
-        invitation: await db.businessInvite.findUniqueOrThrow({
-          where: { id: inviteId },
-          select: INVITE_SELECT,
-        }),
-      };
-    });
+    return this.prisma.$transaction(
+      async (db) => {
+        await this.access.lock(userId, businessId, ['members:invite'], db);
+        const changed = await db.businessInvite.updateMany({
+          where: { id: inviteId, businessId, status: 'pending' },
+          data: { status: 'revoked', revokedAt: new Date() },
+        });
+        if (!changed.count)
+          throw new ConflictException(
+            'Invitation is missing or no longer pending',
+          );
+        await this.outbox.cancelPending(db, inviteId);
+        return {
+          invitation: await db.businessInvite.findUniqueOrThrow({
+            where: { id: inviteId },
+            select: INVITE_SELECT,
+          }),
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
   }
   async resend(userId: string, businessId: string, inviteId: string) {
-    const delivery = await this.prisma.$transaction(async (db) => {
-      await this.access.lock(userId, businessId, ['members:invite'], db);
-      await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "id" = ${inviteId} AND "businessId" = ${businessId} FOR UPDATE`;
-      const invite = await db.businessInvite.findFirst({
-        where: { id: inviteId, businessId },
-      });
-      if (!invite) throw new NotFoundException('Invitation not found');
-      if (invite.status !== 'pending' || invite.expiresAt <= new Date())
-        throw new ConflictException(
-          'Create a new invitation after expiration or revocation',
-        );
-      const token = randomBytes(32).toString('hex');
-      const updated = await db.businessInvite.update({
-        where: { id: inviteId },
-        data: { tokenHash: tokenHash(token), deliveryStatus: 'pending' },
-      });
-      return { invite: updated, token };
-    });
+    const delivery = await this.prisma.$transaction(
+      async (db) => {
+        const access = await this.access.lock(userId, businessId, [], db);
+        this.policy.requireInviteControls(access.permissions);
+        await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "id" = ${inviteId} AND "businessId" = ${businessId} FOR UPDATE`;
+        const invite = await db.businessInvite.findFirst({
+          where: { id: inviteId, businessId },
+        });
+        if (!invite) throw new NotFoundException('Invitation not found');
+        if (invite.status !== 'pending' || invite.expiresAt <= new Date())
+          throw new ConflictException(
+            'Create a new invitation after expiration or revocation',
+          );
+        const current = await db.inviteEmailDelivery.findUnique({
+          where: {
+            inviteId_generation: {
+              inviteId,
+              generation: invite.deliveryGeneration,
+            },
+          },
+        });
+        if (current && ['pending', 'processing'].includes(current.state))
+          return { invite, token: '' };
+        if (current?.state === 'uncertain')
+          throw new ConflictException({
+            code: 'DELIVERY_UNCERTAIN',
+            message:
+              'Reconcile the previous delivery before sending another email',
+          });
+        if (
+          invite.deliverySentAt &&
+          Date.now() - invite.deliverySentAt.getTime() < 60000
+        )
+          throw new ConflictException(
+            'Wait one minute before requesting another invitation email',
+          );
+        const token = randomBytes(32).toString('hex');
+        const updated = await db.businessInvite.update({
+          where: { id: inviteId },
+          data: {
+            tokenHash: tokenHash(token),
+            deliveryStatus: 'pending',
+            deliveryGeneration: { increment: 1 },
+            deliveryAttempts: 0,
+            deliveryProviderId: null,
+            deliverySentAt: null,
+            deliveryLastError: null,
+          },
+        });
+        await this.outbox.record(db, updated);
+        return { invite: updated, token };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
     return { invitation: inviteResponse(delivery.invite) };
   }
 
@@ -205,11 +262,7 @@ export class InviteService {
       items: await this.prisma.businessInvite
         .findMany({
           where: { email: user.email.trim().toLowerCase() },
-          select: {
-            ...INVITE_SELECT,
-            business: { select: { id: true, name: true, profileImage: true } },
-            role: { select: { id: true, name: true, key: true } },
-          },
+          select: PERSONAL_INVITE_SELECT,
           orderBy: { createdAt: 'desc' },
         })
         .then((items) =>
@@ -224,147 +277,53 @@ export class InviteService {
     };
   }
 
+  async personalDetail(userId: string, inviteId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    const invite = await this.prisma.businessInvite.findFirst({
+      where: { id: inviteId, email: user.email.trim().toLowerCase() },
+      select: PERSONAL_INVITE_SELECT,
+    });
+    if (!invite) throw new NotFoundException('Invitation not found');
+    const membership =
+      invite.status === 'accepted'
+        ? await this.prisma.businessMember.findUnique({
+            where: {
+              businessId_userId: { businessId: invite.businessId, userId },
+            },
+            select: {
+              id: true,
+              businessId: true,
+              roleId: true,
+              status: true,
+              approvalStatus: true,
+              approvalRequestedAt: true,
+              approvalReviewedAt: true,
+              approvalReason: true,
+            },
+          })
+        : null;
+    return {
+      invitation: {
+        ...invite,
+        status:
+          invite.status === 'pending' && invite.expiresAt <= new Date()
+            ? ('expired' as const)
+            : invite.status,
+      },
+      membership,
+    };
+  }
+
   accept(userId: string, input: AcceptInviteDto) {
-    return this.acceptInvitation(userId, { tokenHash: tokenHash(input.token) });
+    return this.acceptance.acceptInvitation(userId, {
+      tokenHash: tokenHash(input.token),
+    });
   }
 
   acceptById(userId: string, inviteId: string) {
-    return this.acceptInvitation(userId, { id: inviteId });
-  }
-
-  private async acceptInvitation(
-    userId: string,
-    where: Prisma.BusinessInviteWhereUniqueInput,
-  ) {
-    return this.prisma.$transaction(
-      async (db) => {
-        if (where.id) {
-          await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "id" = ${where.id} FOR UPDATE`;
-        } else {
-          await db.$queryRaw`SELECT "id" FROM "BusinessInvite" WHERE "tokenHash" = ${where.tokenHash} FOR UPDATE`;
-        }
-        const invite = await db.businessInvite.findUnique({
-          where,
-          include: { role: true },
-        });
-        if (!invite) throw new BadRequestException('Invalid invitation token');
-        if (invite.status !== 'pending')
-          throw new ConflictException('Invitation is no longer pending');
-        if (invite.expiresAt <= new Date())
-          throw new GoneException('Invitation expired');
-        await db.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR SHARE`;
-        const user = await db.user.findUnique({
-          where: { id: userId },
-          select: { email: true, emailVerifiedAt: true, status: true },
-        });
-        if (
-          !user ||
-          !user.emailVerifiedAt ||
-          user.status !== 'active' ||
-          user.email.trim().toLowerCase() !== invite.email
-        )
-          throw new ForbiddenException(
-            'Verified control of the invited email is required',
-          );
-        const inviter = await this.access.lock(
-          invite.invitedByUserId,
-          invite.businessId,
-          ['members:invite'],
-          db,
-        );
-        if (
-          invite.role.status !== 'active' ||
-          (invite.role.type === 'custom' &&
-            invite.role.businessId !== invite.businessId) ||
-          (invite.role.type === 'system' && invite.role.key === 'owner')
-        )
-          throw new BadRequestException('Invitation role is unavailable');
-        if (
-          !(invite.role.type === 'system' && invite.role.key === 'employee') &&
-          !inviter.permissions.includes('roles:assign')
-        )
-          throw new ForbiddenException(
-            'Inviter can no longer assign this role',
-          );
-        await db.$queryRaw`SELECT "id" FROM "BusinessMember" WHERE "businessId" = ${invite.businessId} AND "userId" = ${userId} FOR UPDATE`;
-        const existing = await db.businessMember.findUnique({
-          where: {
-            businessId_userId: { businessId: invite.businessId, userId },
-          },
-          include: { role: true },
-        });
-        if (
-          existing &&
-          (existing.status === 'active' ||
-            existing.role.key === 'owner' ||
-            existing.roleId !== invite.roleId)
-        )
-          throw new ConflictException(
-            'Existing membership cannot be replaced by this invitation',
-          );
-        if (existing && !inviter.permissions.includes('members:update_status'))
-          throw new ForbiddenException('Inviter cannot reactivate membership');
-        const now = new Date();
-        const membership = existing
-          ? await db.businessMember.update({
-              where: { id: existing.id },
-              data: {
-                status: 'active',
-                statusUpdatedByUserId: invite.invitedByUserId,
-                statusUpdatedAt: now,
-              },
-              include: { role: { include: ROLE_INCLUDE } },
-            })
-          : await db.businessMember.create({
-              data: {
-                businessId: invite.businessId,
-                userId,
-                roleId: invite.roleId,
-                invitedByUserId: invite.invitedByUserId,
-              },
-              include: { role: { include: ROLE_INCLUDE } },
-            });
-        if (invite.employeeId) {
-          await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${invite.businessId} AND "id" = ${invite.employeeId} FOR UPDATE`;
-          const employee = await db.businessEmployee.findUnique({
-            where: {
-              businessId_id: {
-                businessId: invite.businessId,
-                id: invite.employeeId,
-              },
-            },
-          });
-          if (
-            !employee ||
-            employee.status === 'archived' ||
-            employee.email !== invite.email ||
-            (employee.businessMemberId &&
-              employee.businessMemberId !== membership.id)
-          )
-            throw new ConflictException(
-              'Invited employee is no longer eligible for linking',
-            );
-          await db.businessEmployee.update({
-            where: {
-              businessId_id: {
-                businessId: invite.businessId,
-                id: invite.employeeId,
-              },
-            },
-            data: { businessMemberId: membership.id },
-          });
-        }
-        const accepted = await db.businessInvite.update({
-          where: { id: invite.id },
-          data: { status: 'accepted', acceptedAt: now },
-          select: INVITE_SELECT,
-        });
-        return {
-          invitation: accepted,
-          membership: { ...membership, role: roleResponse(membership.role) },
-        };
-      },
-      { maxWait: 15000, timeout: 30000 },
-    );
+    return this.acceptance.acceptInvitation(userId, { id: inviteId });
   }
 }

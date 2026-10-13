@@ -27,6 +27,35 @@ export function validateEnvironment(input: Environment): Environment {
   validateUrl(environment.GOOGLE_REDIRECT_URL, 'GOOGLE_REDIRECT_URL');
   if (environment.FRONTEND_URL)
     validateUrl(environment.FRONTEND_URL, 'FRONTEND_URL');
+  if (environment.TASK_PUBLIC_API_URL) {
+    validateUrl(environment.TASK_PUBLIC_API_URL, 'TASK_PUBLIC_API_URL');
+    const origin = new URL(environment.TASK_PUBLIC_API_URL);
+    if (
+      !['http:', 'https:'].includes(origin.protocol) ||
+      origin.username ||
+      origin.password ||
+      origin.search ||
+      origin.hash ||
+      origin.pathname !== '/'
+    )
+      throw new Error('TASK_PUBLIC_API_URL must be an HTTP(S) origin');
+    if (environment.NODE_ENV === 'production' && origin.protocol !== 'https:')
+      throw new Error('TASK_PUBLIC_API_URL must use HTTPS in production');
+  }
+  if (
+    environment.INVITE_EMAIL_ENABLED &&
+    !['true', 'false'].includes(environment.INVITE_EMAIL_ENABLED)
+  )
+    throw new Error('INVITE_EMAIL_ENABLED must be true or false');
+  if (
+    environment.INVITE_FRONTEND_PATH &&
+    (!environment.INVITE_FRONTEND_PATH.startsWith('/') ||
+      environment.INVITE_FRONTEND_PATH.startsWith('//') ||
+      /[?#\\]/.test(environment.INVITE_FRONTEND_PATH))
+  )
+    throw new Error(
+      'INVITE_FRONTEND_PATH must be an absolute path on FRONTEND_URL without a query or fragment',
+    );
   if (environment.PAYROLL_ENCRYPTION_KEY) {
     const key = Buffer.from(environment.PAYROLL_ENCRYPTION_KEY, 'base64');
     if (
@@ -40,6 +69,12 @@ export function validateEnvironment(input: Environment): Environment {
   }
 
   if (environment.NODE_ENV === 'production') {
+    if (
+      environment.CLOUDINARY_CLOUD_NAME ||
+      environment.CLOUDINARY_API_KEY ||
+      environment.CLOUDINARY_API_SECRET
+    )
+      requireValue(environment, 'TASK_PUBLIC_API_URL');
     requireValue(environment, 'FRONTEND_URL');
     requireValue(environment, 'TRUST_PROXY');
     if (environment.COOKIE_SECURE !== 'true') {

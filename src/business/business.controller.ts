@@ -223,6 +223,14 @@ export class BusinessInviteController {
   list(@Req() req: AuthenticatedRequest) {
     return this.invites.personalList(req.auth.userId);
   }
+  @Get(':inviteId')
+  @Header('Cache-Control', 'no-store')
+  detail(
+    @Req() req: AuthenticatedRequest,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return this.invites.personalDetail(req.auth.userId, inviteId);
+  }
   @Post(':inviteId/accept')
   @Header('Cache-Control', 'no-store')
   acceptById(

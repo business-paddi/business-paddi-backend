@@ -6,8 +6,16 @@ enum BusinessStatus {
 
 enum BusinessMemberStatus {
   active
+  pending_approval
   suspended
   removed
+}
+
+enum MemberApprovalStatus {
+  not_required
+  pending
+  approved
+  rejected
 }
 
 enum RoleType {
@@ -60,6 +68,16 @@ enum PaymentStatus {
 }
 
 model Business {
+  tasks BusinessTask[]
+  notifications UserNotification[]
+  auditEvents AuditEvent[]
+  inventoryCategories InventoryCategory[]
+  inventoryProducts InventoryProduct[]
+  inventoryMovements InventoryMovement[]
+  inventoryCarts InventoryCart[]
+  inventoryQuotes InventoryQuote[]
+  inventorySales InventorySale[]
+  inventoryOperations InventoryOperation[]
   id           String         @id @default(cuid())
   name         String         @db.VarChar(100)
   description  String?
@@ -135,6 +153,12 @@ model BusinessMember {
   roleId                String
   role                  Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   status                BusinessMemberStatus @default(active)
+  approvalStatus        MemberApprovalStatus @default(not_required)
+  approvalRequestedAt   DateTime? @db.Timestamptz(3)
+  approvalReviewedAt    DateTime? @db.Timestamptz(3)
+  approvalReviewedByUserId String?
+  approvalReviewer      User? @relation("MemberApprovalReviewer", fields: [approvalReviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvalReason        String? @db.VarChar(500)
   invitedByUserId       String?
   invitedBy             User?                @relation("MemberInviter", fields: [invitedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   roleUpdatedByUserId   String?
@@ -155,6 +179,7 @@ model BusinessMember {
   @@index([userId, status])
   @@index([businessId, status])
   @@index([roleId])
+  @@index([businessId, approvalStatus, approvalRequestedAt])
 }
 
 model EmployeeType {
@@ -265,7 +290,8 @@ enum InviteDeliveryStatus {
 }
 
 model BusinessInvite {
-  notification UserNotification?
+  emailDeliveries InviteEmailDelivery[]
+  notifications UserNotification[]
   id              String @id @default(cuid())
   businessId      String
   business        Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -280,6 +306,11 @@ model BusinessInvite {
   tokenHash       String @unique @db.Char(64)
   deliveryStatus  InviteDeliveryStatus @default(pending)
   deliveryAttempts Int @default(0)
+  deliveryGeneration Int @default(1)
+  deliveryProviderId String?
+  deliverySentAt DateTime? @db.Timestamptz(3)
+  deliveryLastError String? @db.VarChar(100)
+  requiresApproval Boolean @default(false)
   expiresAt       DateTime @db.Timestamptz(3)
   acceptedAt      DateTime? @db.Timestamptz(3)
   revokedAt       DateTime? @db.Timestamptz(3)

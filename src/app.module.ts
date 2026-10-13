@@ -14,9 +14,15 @@ import { PasswordResetModule } from './password-reset/password-reset.module';
 import { SensitiveActionModule } from './sensitive-action/sensitive-action.module';
 import { validateEnvironment } from './config/environment';
 import { BusinessModule } from './business/business.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ContactModule } from './public-contact/contact.module';
 
 @Module({
   imports: [
+    TasksModule,
+    ContactModule,
+    InventoryModule,
     BusinessModule,
     OnboardingModule,
     UsersModule,

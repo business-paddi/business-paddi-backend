@@ -1,3 +1,6 @@
+import { InvitePermissionsService } from '../business/invite-permissions.service';
+import { InviteAcceptanceService } from '../business/invite-acceptance.service';
+import { InviteEmailOutbox } from '../invite-email/invite-email-outbox.service';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -52,6 +55,7 @@ describe('Business HTTP contracts', () => {
     accept: jest.fn(),
     create: jest.fn(),
     personalList: jest.fn(),
+    personalDetail: jest.fn(),
     acceptById: jest.fn(),
   };
   beforeAll(async () => {
@@ -207,6 +211,17 @@ describe('Business HTTP contracts', () => {
       .send({ token: 'bad' })
       .expect(400);
   });
+  it('routes personal invitation details through the authenticated user', async () => {
+    invites.personalDetail.mockResolvedValue({
+      invitation: { id: 'i', invitedBy: { name: 'Ada' } },
+      membership: null,
+    });
+    await request(app.getHttpServer())
+      .get('/api/business-invites/i')
+      .expect('Cache-Control', 'no-store')
+      .expect(200);
+    expect(invites.personalDetail).toHaveBeenCalledWith('current-user', 'i');
+  });
   it('routes member profiles with business and member IDs', async () => {
     businesses.member.mockResolvedValue({
       member: { id: 'm' },
@@ -215,7 +230,7 @@ describe('Business HTTP contracts', () => {
     const result = await request(app.getHttpServer())
       .get('/api/businesses/b/members/m')
       .expect(200);
-    expect(result.body.member.id).toBe('m');
+    expect((result.body as { member: { id: string } }).member.id).toBe('m');
     expect(businesses.member).toHaveBeenCalledWith('current-user', 'b', 'm');
     expect(result.headers['cache-control']).toBe('no-store');
   });
@@ -431,8 +446,36 @@ describe('Employee persistence contracts', () => {
       }),
     );
   });
+  it('invalidates provider verification when manually replacing account name', async () => {
+    db.businessEmployee.findUnique.mockResolvedValue({
+      ...stored,
+      accountVerificationStatus: 'verified',
+      accountVerifiedAt: new Date(),
+      verificationMode: 'provider',
+    });
+    await service.update('u', 'b', 'e', { accountName: 'Replacement Name' });
+    expect(db.businessEmployee.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          accountVerificationStatus: 'unverified',
+          verificationJobStatus: 'pending',
+          verificationMode: null,
+          accountVerifiedAt: null,
+          paymentStatus: 'blocked',
+        }) as unknown,
+      }),
+    );
+  });
   it('does not create a tax profile on GET', async () => {
-    expect(await service.tax('u', 'b', 'e')).toEqual({ taxProfile: null });
+    expect(await service.tax('u', 'b', 'e')).toEqual(
+      expect.objectContaining({
+        taxProfile: null,
+        employee: expect.objectContaining({
+          amount: null,
+          accountNumber: null,
+        }) as unknown,
+      }),
+    );
     expect(db.employeeTaxProfile.upsert).not.toHaveBeenCalled();
   });
   it('rejects inconsistent dates against existing profile', async () => {
@@ -442,6 +485,60 @@ describe('Employee persistence contracts', () => {
     await expect(
       service.putTax('u', 'b', 'e', { employmentEndDate: '2026-10-01' }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+  it('saves tax and employee payment fields separately in one transaction', async () => {
+    db.employeeTaxProfile.upsert.mockResolvedValue({
+      id: 'tax',
+      businessId: 'b',
+      employeeId: 'e',
+      taxIdentificationNumber: null,
+      pensionAccountNumber: null,
+    });
+    const result = await service.putTax('u', 'b', 'e', {
+      taxResidenceState: 'Lagos',
+      amount: '250000.00',
+      payFrequency: 'bi-weekly',
+      currency: 'NGN',
+      bankCode: '058',
+      bankName: 'GTBank',
+      accountNumber: '0012345678',
+      accountName: 'Ada',
+    });
+    expect(db.employeeTaxProfile.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          taxResidenceState: 'Lagos',
+          businessId: 'b',
+          employeeId: 'e',
+        }) as unknown,
+      }),
+    );
+    const taxCalls = db.employeeTaxProfile.upsert.mock.calls as unknown as [
+      { create: Record<string, unknown> },
+    ][];
+    const taxWrite = taxCalls[0][0];
+    expect(taxWrite.create).not.toHaveProperty('amount');
+    expect(taxWrite.create).not.toHaveProperty('accountNumber');
+    expect(db.businessEmployee.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: '250000.00',
+          payFrequency: 'bi_weekly',
+          accountNumber: expect.stringMatching(/^enc:v1:/) as unknown,
+          accountName: expect.stringMatching(/^enc:v1:/) as unknown,
+        }) as unknown,
+      }),
+    );
+    expect(result.employee).toHaveProperty('id', 'e');
+  });
+  it('tax-only save leaves employee payment record untouched', async () => {
+    db.employeeTaxProfile.upsert.mockResolvedValue({
+      id: 'tax',
+      taxIdentificationNumber: null,
+      pensionAccountNumber: null,
+    });
+    await service.putTax('u', 'b', 'e', { taxResidenceState: 'Lagos' });
+    expect(db.businessEmployee.update).not.toHaveBeenCalled();
   });
   it('rejects foreign employee before tax lookup', async () => {
     db.businessEmployee.findUnique.mockResolvedValue(null);
@@ -483,9 +580,18 @@ describe('Invitation identity and delivery', () => {
     ),
   } as unknown as PrismaService;
   const access = { lock: jest.fn() };
+  const policy = new InvitePermissionsService();
+  const outbox = {
+    record: jest.fn(),
+    cancelPending: jest.fn(),
+  } as unknown as InviteEmailOutbox;
+  const authorization = access as unknown as BusinessAccessService;
   const service = new InviteService(
     prisma,
-    access as unknown as BusinessAccessService,
+    authorization,
+    policy,
+    outbox,
+    new InviteAcceptanceService(prisma, authorization, policy, outbox),
   );
   beforeEach(() => {
     jest.clearAllMocks();

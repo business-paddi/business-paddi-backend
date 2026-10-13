@@ -46,7 +46,13 @@ export class UsersController {
     );
   }
 
+  @Get('preferences')
+  @Header('Cache-Control', 'no-store')
+  getPreferences(@Req() request: AuthenticatedRequest) {
+    return this.users.getPreferences(request.auth.userId);
+  }
   @Patch('preferences')
+  @Header('Cache-Control', 'no-store')
   updatePreferences(
     @Req() request: AuthenticatedRequest,
     @Body() input: UpdatePreferencesDto,

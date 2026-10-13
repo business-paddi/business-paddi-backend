@@ -29,12 +29,24 @@ export const INVITE_SELECT = {
   status: true,
   deliveryStatus: true,
   deliveryAttempts: true,
+  deliveryGeneration: true,
+  deliveryProviderId: true,
+  deliverySentAt: true,
+  deliveryLastError: true,
+  requiresApproval: true,
   expiresAt: true,
   acceptedAt: true,
   revokedAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
+export const PERSONAL_INVITE_SELECT = {
+  ...INVITE_SELECT,
+  business: { select: { id: true, name: true, profileImage: true } },
+  role: { select: { id: true, name: true, key: true } },
+  invitedBy: { select: { id: true, name: true, avatar: true } },
+} as const satisfies Prisma.BusinessInviteSelect;
+
 export function roleResponse(
   role: Role & {
     permissions: RolePermission[];
@@ -59,6 +71,18 @@ export function roleResponse(
     ...(memberCount === undefined ? {} : { memberCount }),
   };
 }
+export function membershipRoleResponse(
+  role: Parameters<typeof roleResponse>[0],
+  status: string,
+) {
+  const response = roleResponse(role);
+  return {
+    ...response,
+    effectivePermissions:
+      status === 'active' ? response.effectivePermissions : [],
+  };
+}
+
 export function employeeResponse(
   employee: EmployeeWithMember,
   financial = false,

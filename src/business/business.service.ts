@@ -15,7 +15,11 @@ import {
   GroupDto,
 } from './business.dto';
 import { seedEmployeeTypes } from '../business-foundation/seed';
-import { roleResponse, employeeResponse } from './business.responses';
+import {
+  roleResponse,
+  employeeResponse,
+  membershipRoleResponse,
+} from './business.responses';
 import { InviteService } from './invite.service';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma/client';
@@ -61,6 +65,7 @@ export class BusinessService {
       throw new ConflictException('Duplicate employee email in onboarding');
     const result = await this.prisma.$transaction(
       async (db) => {
+        await db.$queryRaw`SELECT set_config('business_paddi.actor_id', ${userId}, true)`;
         if (key) {
           await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId + ':' + key}, 0))::text`;
           const previous = await db.businessCreationRequest.findUnique({
@@ -289,7 +294,10 @@ export class BusinessService {
       orderBy: { createdAt: 'asc' },
     });
     return {
-      items: members.map((m) => ({ ...m, role: roleResponse(m.role) })),
+      items: members.map((m) => ({
+        ...m,
+        role: membershipRoleResponse(m.role, m.status),
+      })),
     };
   }
   async member(userId: string, businessId: string, memberId: string) {
@@ -333,7 +341,10 @@ export class BusinessService {
             .taxProfile
         : null;
     return {
-      member: { ...profile, role: roleResponse(role) },
+      member: {
+        ...profile,
+        role: membershipRoleResponse(role, profile.status),
+      },
       hasEmployee: linkedEmployee !== null,
       employee:
         employee && linkedEmployee

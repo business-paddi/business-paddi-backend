@@ -22,7 +22,11 @@
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "db:seed": "ts-node --project tsconfig.scripts.json scripts/seed-business-foundation.ts",
     "db:test:integrity": "ts-node --project tsconfig.scripts.json scripts/test-business-integrity.ts",
-    "db:test:business": "ts-node --project tsconfig.scripts.json scripts/test-business-api.ts"
+    "db:test:business": "ts-node --project tsconfig.scripts.json scripts/test-business-api.ts",
+    "db:test:inventory": "ts-node --project tsconfig.scripts.json scripts/test-inventory-api.ts",
+    "db:test:invites": "ts-node --project tsconfig.scripts.json scripts/test-invite-email.ts",
+    "db:test:notifications": "ts-node --project tsconfig.scripts.json scripts/test-notification-events.ts",
+    "db:test:tasks": "ts-node --project tsconfig.scripts.json scripts/test-tasks-api.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -34,11 +38,14 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.9.1",
     "argon2": "^0.45.1",
+    "bullmq": "^6.3.12",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
     "google-auth-library": "^11.0.2",
     "helmet": "^8.1.0",
+    "ioredis": "^6.0.0",
     "maxmind": "^5.0.7",
     "redis": "^6.2.1",
     "reflect-metadata": "^0.2.2",

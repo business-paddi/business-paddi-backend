@@ -1,3 +1,7 @@
+import { InviteEmailVault } from '../src/invite-email/invite-email-vault.service';
+import { InvitePermissionsService } from '../src/business/invite-permissions.service';
+import { InviteAcceptanceService } from '../src/business/invite-acceptance.service';
+import { InviteEmailOutbox } from '../src/invite-email/invite-email-outbox.service';
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -60,9 +64,22 @@ async function main() {
         const access = new BusinessAccessService(database);
         const config = new ConfigService({
           FRONTEND_URL: 'https://frontend.example.invalid',
+          RESEND_FROM_EMAIL: 'BusinessPaddi <test@example.invalid>',
+          VERIFICATION_CODE_PEPPER: randomBytes(32).toString('hex'),
           PAYROLL_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
         });
-        const invites = new InviteService(database, access);
+        const policy = new InvitePermissionsService();
+        const outbox = new InviteEmailOutbox(
+          config,
+          new InviteEmailVault(config),
+        );
+        const invites = new InviteService(
+          database,
+          access,
+          policy,
+          outbox,
+          new InviteAcceptanceService(database, access, policy, outbox),
+        );
         const employees = new EmployeeService(database, access, config);
         const businesses = new BusinessService(
           database,

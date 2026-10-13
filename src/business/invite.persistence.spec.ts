@@ -1,3 +1,6 @@
+import { InvitePermissionsService } from '../business/invite-permissions.service';
+import { InviteAcceptanceService } from '../business/invite-acceptance.service';
+import { InviteEmailOutbox } from '../invite-email/invite-email-outbox.service';
 import { createHash } from 'node:crypto';
 import type { PrismaService } from '../database/prisma.service';
 import { BusinessAccessService } from './business-access.service';
@@ -15,9 +18,14 @@ describe('Invitation persistence and acceptance transactions', () => {
   };
   const db = {
     $queryRaw: jest.fn(),
-    role: { findFirst: jest.fn(), findUnique: jest.fn() },
+    role: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+    },
     user: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
     businessInvite: {
+      findFirst: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
       findUnique: jest.fn(),
@@ -36,9 +44,24 @@ describe('Invitation persistence and acceptance transactions', () => {
     async (fn: (database: unknown) => Promise<unknown>) => fn(db),
   );
   const access = { lock: jest.fn() };
+  const outbox = { record: jest.fn(), cancelPending: jest.fn() };
+  const policy = new InvitePermissionsService();
+  const database = {
+    ...db,
+    $transaction: transaction,
+  } as unknown as PrismaService;
+  const acceptance = new InviteAcceptanceService(
+    database,
+    access as unknown as BusinessAccessService,
+    policy,
+    outbox as unknown as InviteEmailOutbox,
+  );
   const service = new InviteService(
     { ...db, $transaction: transaction } as unknown as PrismaService,
     access as unknown as BusinessAccessService,
+    policy,
+    outbox as unknown as InviteEmailOutbox,
+    acceptance,
   );
   const token = 'a'.repeat(64);
   const stored = {
@@ -60,6 +83,7 @@ describe('Invitation persistence and acceptance transactions', () => {
     });
     db.role.findFirst.mockResolvedValue(role);
     db.role.findUnique.mockResolvedValue(role);
+    db.role.findUniqueOrThrow.mockResolvedValue(role);
     db.user.findUnique.mockResolvedValue({
       email: 'ada@example.com',
       emailVerifiedAt: new Date(),
@@ -102,6 +126,7 @@ describe('Invitation persistence and acceptance transactions', () => {
         invitedByUserId: 'owner',
         tokenHash: createHash('sha256').update(delivery.token).digest('hex'),
         deliveryStatus: 'pending',
+        requiresApproval: false,
         expiresAt: delivery.invite.expiresAt,
       },
     });
@@ -132,7 +157,9 @@ describe('Invitation persistence and acceptance transactions', () => {
     expect(result.membership.id).toBe('m');
     expect(db.businessInvite.findUnique).toHaveBeenCalledWith({
       where: { id: 'i' },
-      include: { role: true },
+      include: {
+        role: { include: { permissions: true, deniedPermissions: true } },
+      },
     });
   });
   it('does not allow a different customer to accept by ID', async () => {
@@ -152,10 +179,61 @@ describe('Invitation persistence and acceptance transactions', () => {
       { id: 'i', status: 'pending', expiresAt: new Date(0) },
     ]);
     const result = await service.personalList('u');
-    const query = db.businessInvite.findMany.mock.calls[0][0];
+    const query = (
+      db.businessInvite.findMany.mock.calls as unknown[][]
+    )[0][0] as {
+      where: { email: string };
+      select: Record<string, unknown>;
+    };
     expect(query.where).toEqual({ email: 'ada@example.com' });
     expect(query.select).not.toHaveProperty('tokenHash');
     expect(result.items[0].status).toBe('expired');
+  });
+  it('hides singular invitation details from a different customer', async () => {
+    db.user.findUniqueOrThrow.mockResolvedValue({ email: 'ada@example.com' });
+    db.businessInvite.findFirst.mockResolvedValue(null);
+    await expect(service.personalDetail('u', 'foreign')).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(db.businessInvite.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'foreign', email: 'ada@example.com' },
+      }),
+    );
+  });
+  it('returns inviter details and the current accepted membership review state', async () => {
+    db.user.findUniqueOrThrow.mockResolvedValue({ email: 'ada@example.com' });
+    db.businessInvite.findFirst.mockResolvedValue({
+      ...stored,
+      status: 'accepted',
+      invitedBy: { id: 'owner', name: 'Ada', avatar: null },
+    });
+    db.businessMember.findUnique.mockResolvedValue({
+      id: 'm',
+      status: 'pending_approval',
+      approvalStatus: 'pending',
+    });
+    const result = await service.personalDetail('u', 'i');
+    expect(result.invitation.invitedBy.name).toBe('Ada');
+    expect(result.membership?.approvalStatus).toBe('pending');
+    const query = (
+      db.businessInvite.findFirst.mock.calls as unknown[][]
+    )[0][0] as { select: Record<string, unknown> };
+    expect(query.select).not.toHaveProperty('tokenHash');
+    expect(query.select.invitedBy).toEqual({
+      select: { id: true, name: true, avatar: true },
+    });
+  });
+  it('reports expiry on the singular invitation without creating membership', async () => {
+    db.user.findUniqueOrThrow.mockResolvedValue({ email: 'ada@example.com' });
+    db.businessInvite.findFirst.mockResolvedValue({
+      ...stored,
+      expiresAt: new Date(0),
+    });
+    const result = await service.personalDetail('u', 'i');
+    expect(result.invitation.status).toBe('expired');
+    expect(result.membership).toBeNull();
+    expect(db.businessMember.findUnique).not.toHaveBeenCalled();
   });
   it('rejects foreign employee references and email mismatch', async () => {
     db.businessEmployee.findUnique.mockResolvedValue(null);
@@ -206,6 +284,12 @@ describe('Invitation persistence and acceptance transactions', () => {
         userId: 'ada',
         roleId: role.id,
         invitedByUserId: 'owner',
+        status: 'active',
+        approvalStatus: 'not_required',
+        approvalRequestedAt: null,
+        approvalReviewedAt: null,
+        approvalReviewedByUserId: null,
+        approvalReason: null,
       },
       include: {
         role: { include: { permissions: true, deniedPermissions: true } },
@@ -233,5 +317,70 @@ describe('Invitation persistence and acceptance transactions', () => {
       status: 409,
     });
     expect(db.businessMember.update).not.toHaveBeenCalled();
+  });
+
+  it.each([['roles:assign'], ['members:invite'], []])(
+    'requires both controls even for employee invitations (%j)',
+    async (...permissions: string[]) => {
+      access.lock.mockResolvedValue({ permissions });
+      await expect(
+        service.create('owner', 'b', { email: 'ada@example.com' }),
+      ).rejects.toMatchObject({ response: { code: 'MISSING_ACCESS_CONTROL' } });
+      expect(db.businessInvite.create).not.toHaveBeenCalled();
+      expect(outbox.record).not.toHaveBeenCalled();
+    },
+  );
+
+  it('records delivery in the same transaction as invitation and notification', async () => {
+    const delivery = await service.record(db as never, 'owner', 'b', {
+      email: 'ada@example.com',
+    });
+    expect(outbox.record).toHaveBeenCalledWith(db, delivery.invite);
+    outbox.record.mockRejectedValueOnce(new Error('Outbox unavailable'));
+    await expect(
+      service.create('owner', 'b', { email: 'ada@example.com' }),
+    ).rejects.toThrow('Outbox unavailable');
+  });
+
+  it('persists approval requirement when the target grants exceed inviter authority', async () => {
+    db.role.findUniqueOrThrow.mockResolvedValue({
+      ...role,
+      permissions: [{ permission: 'inventory:manage' }],
+    });
+    const result = await service.create('owner', 'b', {
+      email: 'ada@example.com',
+    });
+    expect(result.invitation.requiresApproval).toBe(true);
+  });
+
+  it('keeps requested membership pending even if inviter gains permissions later', async () => {
+    db.businessInvite.findUnique.mockResolvedValue({
+      ...stored,
+      requiresApproval: true,
+    });
+    db.businessMember.create.mockImplementationOnce(
+      (input: { data: object }) => ({ ...input.data, id: 'm', role }),
+    );
+    const result = await service.acceptById('u', 'i');
+    expect(result.membership.status).toBe('pending_approval');
+    expect(result.membership.approvalStatus).toBe('pending');
+    expect(result.membership.role.effectivePermissions).toEqual([]);
+  });
+
+  it('rechecks current target grants at acceptance to prevent permission escalation', async () => {
+    db.role.findUniqueOrThrow.mockResolvedValue({
+      ...role,
+      permissions: [{ permission: 'inventory:manage' }],
+    });
+    db.businessMember.create.mockImplementationOnce(
+      (input: { data: object }) => ({ ...input.data, id: 'm', role }),
+    );
+    const result = await service.acceptById('u', 'i');
+    expect(result.membership.status).toBe('pending_approval');
+    expect(db.businessInvite.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ requiresApproval: true }) as unknown,
+      }),
+    );
   });
 });

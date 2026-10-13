@@ -1,0 +1,134 @@
+model BusinessTask {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  title String @db.VarChar(200)
+  description String?
+  status String @default("unassigned") @db.VarChar(30)
+  priority String @default("normal") @db.VarChar(10)
+  dueAt DateTime? @db.Timestamptz(3)
+  createdByMemberId String
+  creator Json
+  assigneeMemberId String?
+  assignmentId String?
+  reviewerMemberId String?
+  requiresReview Boolean @default(true)
+  revision Int @default(1)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  assignments TaskAssignment[]
+  attempts TaskAttempt[]
+  entries TaskEntry[]
+  images TaskImage[]
+  @@unique([businessId, id])
+  @@index([businessId, updatedAt, id])
+  @@index([assigneeMemberId, status])
+}
+
+model TaskAssignment {
+  id String @id @default(cuid())
+  taskId String
+  task BusinessTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  memberId String
+  employeeId String?
+  identity Json
+  cycle Int
+  dueAt DateTime? @db.Timestamptz(3)
+  assignedAt DateTime @default(now()) @db.Timestamptz(3)
+  startedAt DateTime? @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  endReason String?
+  acceptedAt DateTime? @db.Timestamptz(3)
+  cancelled Boolean @default(false)
+  attempts TaskAttempt[]
+  @@unique([taskId, cycle])
+  @@index([taskId, assignedAt, id])
+  @@index([memberId, assignedAt])
+}
+
+model TaskAttempt {
+  id String @id @default(cuid())
+  taskId String
+  task BusinessTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  assignmentId String
+  assignment TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  attemptNumber Int
+  memberId String
+  employeeId String?
+  status String @db.VarChar(30)
+  evidence Json
+  submittedAt DateTime @default(now()) @db.Timestamptz(3)
+  reviewedAt DateTime? @db.Timestamptz(3)
+  reviewedByMemberId String?
+  reviewReason String? @db.VarChar(1000)
+  @@unique([assignmentId, attemptNumber])
+  @@index([taskId, submittedAt, id])
+}
+
+model TaskEntry {
+  id String @id @default(cuid())
+  taskId String
+  task BusinessTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  kind String @db.VarChar(20)
+  event String @db.VarChar(60)
+  actor Json
+  assignmentId String?
+  attemptId String?
+  reason String? @db.VarChar(1000)
+  data Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([taskId, kind, createdAt, id])
+}
+
+model TaskImage {
+  id String @id @default(cuid())
+  taskId String
+  task BusinessTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  uploadedByUserId String
+  publicId String @unique
+  name String @db.VarChar(200)
+  contentType String @db.VarChar(30)
+  sizeBytes Int
+  width Int?
+  height Int?
+  version Int?
+  status String @default("pending")
+  attachedTo String?
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([status, expiresAt])
+}
+
+model TaskOperation {
+  userId String
+  key String @db.VarChar(100)
+  hash String @db.Char(64)
+  result Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([userId, key])
+}
+
+model ContactRequest {
+  id String @id @default(cuid())
+  kind String @db.VarChar(10)
+  name String @db.VarChar(200)
+  email String @db.VarChar(254)
+  businessName String @db.VarChar(200)
+  locations String? @db.VarChar(300)
+  planInterest String? @db.VarChar(30)
+  focus String? @db.VarChar(100)
+  message String? @db.VarChar(2000)
+  fingerprint String @db.Char(64)
+  retryKey String? @db.Char(64)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([fingerprint, createdAt])
+  @@index([retryKey, createdAt])
+}
+
+model ContactRateBucket {
+  key String @id @db.VarChar(100)
+  count Int @default(1)
+  expiresAt DateTime @db.Timestamptz(3)
+  @@index([expiresAt])
+}

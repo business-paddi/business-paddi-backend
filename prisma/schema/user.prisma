@@ -1,4 +1,6 @@
 model User {
+  inventoryCarts InventoryCart[]
+  inventoryQuotes InventoryQuote[]
   id                          String           @id @default(cuid())
   email                       String           @unique
   name                        String           @db.VarChar(40)
@@ -20,6 +22,7 @@ model User {
   businessMemberStatusChanges BusinessMember[] @relation("MemberStatusUpdater")
   removedBusinessMembers      BusinessMember[] @relation("MemberRemover")
   businessInvites              BusinessInvite[]
+  reviewedBusinessMembers      BusinessMember[] @relation("MemberApprovalReviewer")
   businessCreationRequests    BusinessCreationRequest[]
   notifications               UserNotification[]
 }
@@ -28,13 +31,23 @@ model UserNotification {
   id        String @id @default(cuid())
   userId    String
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inviteId  String @unique
-  invite    BusinessInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  inviteId  String?
+  invite    BusinessInvite? @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  businessId String?
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  title String? @db.VarChar(200)
+  message String? @db.VarChar(1000)
+  actionUrl String? @db.VarChar(500)
+  data Json?
+  eventKey String? @db.VarChar(200)
   type      String @default("business_invite")
   readAt    DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([userId, createdAt])
+  @@unique([userId, eventKey])
+  @@index([userId, readAt, createdAt])
+  @@index([inviteId])
 }
 
 enum Status {
@@ -45,6 +58,7 @@ enum Status {
 }
 
 model UserPreference {
+  sidebarMinimized Boolean @default(false)
   userId String @id
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 

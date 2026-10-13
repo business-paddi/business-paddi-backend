@@ -6,6 +6,7 @@ jest.mock('resend', () => ({ Resend: jest.fn() }));
 
 interface SentEmail {
   subject?: string;
+  attachments?: { filename: string; contentId: string; contentType: string }[];
   [key: string]: unknown;
 }
 
@@ -30,13 +31,13 @@ type NoticeMethod = 'sendEmailChangedNotice' | 'sendPasswordResetNotice';
 type CodeMethod = Exclude<EmailMethodName, NoticeMethod>;
 
 const CASES: Array<[EmailMethodName, string]> = [
-  ['sendEmailVerification', 'Verify your Business Paddi email'],
-  ['sendLoginVerification', 'Complete your Business Paddi login'],
-  ['sendEmailChangeVerification', 'Confirm your new Business Paddi email'],
-  ['sendEmailChangedNotice', 'Your Business Paddi email was changed'],
-  ['sendPasswordResetCode', 'Reset your Business Paddi password'],
-  ['sendPasswordResetNotice', 'Your Business Paddi password was reset'],
-  ['sendSensitiveActionCode', 'Confirm your Business Paddi security change'],
+  ['sendEmailVerification', 'Verify your BusinessPaddi email'],
+  ['sendLoginVerification', 'Complete your BusinessPaddi login'],
+  ['sendEmailChangeVerification', 'Confirm your new BusinessPaddi email'],
+  ['sendEmailChangedNotice', 'Your BusinessPaddi email was changed'],
+  ['sendPasswordResetCode', 'Reset your BusinessPaddi password'],
+  ['sendPasswordResetNotice', 'Your BusinessPaddi password was reset'],
+  ['sendSensitiveActionCode', 'Confirm your BusinessPaddi security change'],
 ];
 
 describe('EmailService branding', () => {
@@ -81,6 +82,17 @@ describe('EmailService branding', () => {
     const html = JSON.stringify(sent[0].html ?? '');
     expect(html).toContain('display:none');
     expect(html).toContain('<h1');
+    expect(html).toContain('YOUR BUSINESS, CONNECTED');
+    expect(html).toContain('cid:business-paddi-logo');
+    expect(html).toContain('#216e98');
+    expect(html).toContain('border:1px solid #dce5ed');
+    expect(html).toContain('lang=');
+    expect(sent[0].attachments).toEqual([
+      expect.objectContaining({
+        contentId: 'business-paddi-logo',
+        contentType: 'image/png',
+      }),
+    ]);
     if (
       method !== 'sendEmailChangedNotice' &&
       method !== 'sendPasswordResetNotice'

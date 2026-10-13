@@ -1,4 +1,6 @@
 model AuditEvent {
+  businessId String?
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Restrict)
   eventId String @id
 
   eventType String
@@ -31,6 +33,7 @@ model AuditEvent {
   @@index([requestId])
   @@index([userSessionId])
   @@index([createdAt])
+  @@index([businessId, createdAt(sort: Desc), eventId])
 }
 
 enum AuditCategory {

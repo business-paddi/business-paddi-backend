@@ -1,4 +1,5 @@
 export const PUBLIC_PREFERENCES_SELECT = {
+  sidebarMinimized: true,
   desktopNotifications: true,
   twoFactorEnabled: true,
   onboardingUseCases: true,
@@ -9,6 +10,7 @@ export const PUBLIC_PREFERENCES_SELECT = {
 } as const;
 
 interface StoredPreferences {
+  sidebarMinimized?: boolean;
   desktopNotifications: boolean;
   twoFactorEnabled: boolean;
   onboardingUseCases: string[];
@@ -31,6 +33,7 @@ export function toOnboardingPreferences(preferences: StoredPreferences | null) {
 export function toPublicPreferences(preferences: StoredPreferences | null) {
   return {
     desktopNotifications: preferences?.desktopNotifications ?? true,
+    sidebarMinimized: preferences?.sidebarMinimized ?? false,
     twoFactorEnabled: preferences?.twoFactorEnabled ?? false,
     onboarding: toOnboardingPreferences(preferences),
   };

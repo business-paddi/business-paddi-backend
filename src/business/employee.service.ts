@@ -179,15 +179,18 @@ export class EmployeeService {
     employeeId: string,
     input: UpdateEmployeeDto,
   ) {
-    return this.prisma.$transaction(async (db) => {
-      await this.access.lock(userId, businessId, ['employees:update'], db);
-      return {
-        employee: employeeResponse(
-          await this.updateRecord(db, businessId, employeeId, input),
-          true,
-        ),
-      };
-    });
+    return this.prisma.$transaction(
+      async (db) => {
+        await this.access.lock(userId, businessId, ['employees:update'], db);
+        return {
+          employee: employeeResponse(
+            await this.updateRecord(db, businessId, employeeId, input),
+            true,
+          ),
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
   }
 
   private async updateRecord(
@@ -238,12 +241,36 @@ export class EmployeeService {
       paymentStatus: 'blocked',
       paymentBlockedReason: 'payment_setup_requires_verification',
     };
-    // Avoid invalidating verification when the client re-sends the same account number.
+    // Keep ciphertext stable for unchanged values; nonce changes would otherwise
+    // look like bank edits to verification and notification event handlers.
     if (
       accountNumber !== undefined &&
       accountNumber === this.decode(old.accountNumber)
     )
       delete data.accountNumber;
+    if (
+      accountName !== undefined &&
+      accountName === this.decode(old.accountName) &&
+      !(input.bankCode !== undefined && input.bankCode !== old.bankCode) &&
+      !(
+        accountNumber !== undefined &&
+        accountNumber !== this.decode(old.accountNumber)
+      )
+    )
+      delete data.accountName;
+    // A manually replaced account holder name is input, not provider verification.
+    if (data.accountName !== undefined) {
+      Object.assign(data, {
+        accountVerificationStatus: 'unverified',
+        verificationJobStatus: 'pending',
+        verificationMode: null,
+        verificationAttemptCount: 0,
+        accountVerifiedAt: null,
+        accountVerificationFailureReason: null,
+        lastAccountValidationAt: null,
+        nextVerificationAttemptAt: null,
+      });
+    }
     const employee = await db.businessEmployee.update({
       include: EMPLOYEE_INCLUDE,
       where: { businessId_id: { businessId, id: employeeId } },
@@ -304,8 +331,9 @@ export class EmployeeService {
       'employees:view',
       'employees:update',
     ]);
-    await this.find(this.prisma, businessId, employeeId);
+    const employee = await this.find(this.prisma, businessId, employeeId);
     return {
+      employee: this.financialResponse(employee),
       taxProfile: this.taxResponse(
         await this.prisma.employeeTaxProfile.findUnique({
           where: { businessId_employeeId: { businessId, employeeId } },
@@ -319,62 +347,111 @@ export class EmployeeService {
     employeeId: string,
     input: TaxProfileDto,
   ) {
-    return this.prisma.$transaction(async (db) => {
-      await this.access.lock(
-        userId,
-        businessId,
-        ['employees:view', 'employees:update'],
-        db,
-      );
-      await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${businessId} AND "id" = ${employeeId} FOR UPDATE`;
-      const employee = await this.find(db, businessId, employeeId);
-      if (employee.status === 'archived')
-        throw new BadRequestException('Archived employees cannot be updated');
-      const old = await db.employeeTaxProfile.findUnique({
-        where: { businessId_employeeId: { businessId, employeeId } },
-      });
-      const {
-        taxIdentificationNumber,
-        pensionAccountNumber,
-        employmentStartDate,
-        employmentEndDate,
-        ...plain
-      } = input;
-      const start =
-        employmentStartDate === undefined
-          ? old?.employmentStartDate
-          : employmentStartDate === null
-            ? null
-            : new Date(employmentStartDate);
-      const end =
-        employmentEndDate === undefined
-          ? old?.employmentEndDate
-          : employmentEndDate === null
-            ? null
-            : new Date(employmentEndDate);
-      if (start && end && end < start)
-        throw new BadRequestException(
-          'Employment end date must not precede start date',
+    return this.prisma.$transaction(
+      async (db) => {
+        await this.access.lock(
+          userId,
+          businessId,
+          ['employees:view', 'employees:update'],
+          db,
         );
-      const data = {
-        ...plain,
-        ...(taxIdentificationNumber !== undefined
-          ? { taxIdentificationNumber: this.encode(taxIdentificationNumber) }
-          : {}),
-        ...(pensionAccountNumber !== undefined
-          ? { pensionAccountNumber: this.encode(pensionAccountNumber) }
-          : {}),
-        ...(employmentStartDate !== undefined
-          ? { employmentStartDate: start }
-          : {}),
-        ...(employmentEndDate !== undefined ? { employmentEndDate: end } : {}),
-      };
-      const profile = await db.employeeTaxProfile.upsert({
-        where: { businessId_employeeId: { businessId, employeeId } },
-        create: { ...data, businessId, employeeId },
-        update: data,
-      });
-      return { taxProfile: this.taxResponse(profile) };
-    });
+        await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${businessId} AND "id" = ${employeeId} FOR UPDATE`;
+        const employee = await this.find(db, businessId, employeeId);
+        if (employee.status === 'archived')
+          throw new BadRequestException('Archived employees cannot be updated');
+        const old = await db.employeeTaxProfile.findUnique({
+          where: { businessId_employeeId: { businessId, employeeId } },
+        });
+        const {
+          bankCode,
+          bankName,
+          accountNumber,
+          accountName,
+          amount,
+          payFrequency,
+          currency,
+          ...taxInput
+        } = input;
+        const paymentInput = {
+          bankCode,
+          bankName,
+          accountNumber,
+          accountName,
+          amount,
+          payFrequency,
+          currency,
+        };
+        const {
+          taxIdentificationNumber,
+          pensionAccountNumber,
+          employmentStartDate,
+          employmentEndDate,
+          ...plain
+        } = taxInput;
+        const start =
+          employmentStartDate === undefined
+            ? old?.employmentStartDate
+            : employmentStartDate === null
+              ? null
+              : new Date(employmentStartDate);
+        const end =
+          employmentEndDate === undefined
+            ? old?.employmentEndDate
+            : employmentEndDate === null
+              ? null
+              : new Date(employmentEndDate);
+        if (start && end && end < start)
+          throw new BadRequestException(
+            'Employment end date must not precede start date',
+          );
+        const data = {
+          ...plain,
+          ...(taxIdentificationNumber !== undefined
+            ? { taxIdentificationNumber: this.encode(taxIdentificationNumber) }
+            : {}),
+          ...(pensionAccountNumber !== undefined
+            ? { pensionAccountNumber: this.encode(pensionAccountNumber) }
+            : {}),
+          ...(employmentStartDate !== undefined
+            ? { employmentStartDate: start }
+            : {}),
+          ...(employmentEndDate !== undefined
+            ? { employmentEndDate: end }
+            : {}),
+        };
+        const profile = await db.employeeTaxProfile.upsert({
+          where: { businessId_employeeId: { businessId, employeeId } },
+          create: { ...data, businessId, employeeId },
+          update: data,
+        });
+        const savedEmployee = Object.values(paymentInput).some(
+          (value) => value !== undefined,
+        )
+          ? await this.updateRecord(db, businessId, employeeId, paymentInput)
+          : employee;
+        return {
+          taxProfile: this.taxResponse(profile),
+          employee: this.financialResponse(savedEmployee),
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
+  }
+  private financialResponse(
+    employee: Awaited<ReturnType<EmployeeService['find']>>,
+  ) {
+    return {
+      ...employeeResponse(employee, true),
+      amount: employee.amount?.toFixed(2) ?? null,
+      payFrequency:
+        employee.payFrequency === 'bi_weekly'
+          ? 'bi-weekly'
+          : employee.payFrequency,
+      currency: employee.currency,
+      bankCode: employee.bankCode,
+      bankName: employee.bankName,
+      accountNumber: this.decode(employee.accountNumber),
+      accountName: this.decode(employee.accountName),
+    };
   }
 }

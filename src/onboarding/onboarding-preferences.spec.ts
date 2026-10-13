@@ -4,6 +4,7 @@ describe('Public user preferences', () => {
   it('provides a stable nested onboarding shape for users without preferences', () => {
     expect(toPublicPreferences(null)).toEqual({
       desktopNotifications: true,
+      sidebarMinimized: false,
       twoFactorEnabled: false,
       onboarding: {
         useCases: [],
@@ -29,6 +30,7 @@ describe('Public user preferences', () => {
       }),
     ).toEqual({
       desktopNotifications: false,
+      sidebarMinimized: false,
       twoFactorEnabled: true,
       onboarding: {
         useCases: ['personal_records', 'calculate_taxes'],

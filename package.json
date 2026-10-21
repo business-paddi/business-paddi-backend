@@ -26,7 +26,8 @@
     "db:test:inventory": "ts-node --project tsconfig.scripts.json scripts/test-inventory-api.ts",
     "db:test:invites": "ts-node --project tsconfig.scripts.json scripts/test-invite-email.ts",
     "db:test:notifications": "ts-node --project tsconfig.scripts.json scripts/test-notification-events.ts",
-    "db:test:tasks": "ts-node --project tsconfig.scripts.json scripts/test-tasks-api.ts"
+    "db:test:tasks": "ts-node --project tsconfig.scripts.json scripts/test-tasks-api.ts",
+    "db:test:payroll": "ts-node --project tsconfig.scripts.json scripts/test-payroll-api.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
+import { isEmployeeLocked } from './employee-status';
 import type { Prisma, BusinessEmployee } from '../../generated/prisma/client';
 import { BusinessAccessService } from './business-access.service';
 import {
@@ -111,7 +112,7 @@ export class EmployeeService {
     await this.access.require(userId, businessId, ['employees:view']);
     const where: Prisma.BusinessEmployeeWhereInput = {
       businessId,
-      status: query.status ?? { not: 'archived' },
+      status: query.status ?? { notIn: ['archived', 'deleted'] },
       ...(query.employeeTypeId ? { employeeTypeId: query.employeeTypeId } : {}),
       ...(query.search
         ? {
@@ -201,16 +202,18 @@ export class EmployeeService {
   ) {
     await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${businessId} AND "id" = ${employeeId} FOR UPDATE`;
     const old = await this.find(db, businessId, employeeId);
-    if (old.status === 'archived')
-      throw new BadRequestException('Archived employees cannot be updated');
+    if (isEmployeeLocked(old.status))
+      throw new BadRequestException(
+        'Archived, deleted or scheduled-for-deletion employees cannot be updated',
+      );
     if (input.employeeTypeId !== undefined)
       await this.validType(db, businessId, input.employeeTypeId);
     if (input.managerEmployeeId) {
       if (input.managerEmployeeId === employeeId)
         throw new BadRequestException('Employee cannot manage themselves');
       const manager = await this.find(db, businessId, input.managerEmployeeId);
-      if (manager.status === 'archived')
-        throw new BadRequestException('Manager is archived');
+      if (isEmployeeLocked(manager.status))
+        throw new BadRequestException('Manager is archived or unavailable');
     }
     if (input.groupIds?.length) {
       const count = await db.employeeGroup.count({
@@ -293,7 +296,15 @@ export class EmployeeService {
   archive(userId: string, businessId: string, employeeId: string) {
     return this.prisma.$transaction(async (db) => {
       await this.access.lock(userId, businessId, ['employees:archive'], db);
-      await this.find(db, businessId, employeeId);
+      await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${businessId} AND "id" = ${employeeId} FOR UPDATE`;
+      const current = await this.find(db, businessId, employeeId);
+      if (
+        current.status === 'deleted' ||
+        current.status === 'scheduled_for_deletion'
+      )
+        throw new BadRequestException(
+          'Cancel deletion or restore the employee through the lifecycle endpoint first',
+        );
       const employee = await db.businessEmployee.update({
         include: EMPLOYEE_INCLUDE,
         where: { businessId_id: { businessId, id: employeeId } },
@@ -357,8 +368,10 @@ export class EmployeeService {
         );
         await db.$queryRaw`SELECT "id" FROM "BusinessEmployee" WHERE "businessId" = ${businessId} AND "id" = ${employeeId} FOR UPDATE`;
         const employee = await this.find(db, businessId, employeeId);
-        if (employee.status === 'archived')
-          throw new BadRequestException('Archived employees cannot be updated');
+        if (isEmployeeLocked(employee.status))
+          throw new BadRequestException(
+            'Archived, deleted or scheduled-for-deletion employees cannot be updated',
+          );
         const old = await db.employeeTaxProfile.findUnique({
           where: { businessId_employeeId: { businessId, employeeId } },
         });
@@ -386,6 +399,7 @@ export class EmployeeService {
           pensionAccountNumber,
           employmentStartDate,
           employmentEndDate,
+          payrollInputs,
           ...plain
         } = taxInput;
         const start =
@@ -406,6 +420,13 @@ export class EmployeeService {
           );
         const data = {
           ...plain,
+          ...(payrollInputs !== undefined
+            ? {
+                payrollInputs: JSON.parse(
+                  JSON.stringify(payrollInputs),
+                ) as Prisma.InputJsonValue,
+              }
+            : {}),
           ...(taxIdentificationNumber !== undefined
             ? { taxIdentificationNumber: this.encode(taxIdentificationNumber) }
             : {}),

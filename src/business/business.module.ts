@@ -15,10 +15,17 @@ import { MemberApprovalService } from './member-approval.service';
 import { MemberApprovalController } from './member-approval.controller';
 import { BusinessAuditController } from './business-audit.controller';
 import { BusinessAuditService } from './business-audit.service';
+import { GroupService } from './group.service';
+import { GroupController } from './group.controller';
+import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { EmployeeLifecycleController } from './employee-lifecycle.controller';
+import { EmployeeDeletionWorker } from './employee-deletion.worker';
 
 @Module({
   imports: [InviteEmailModule],
   controllers: [
+    GroupController,
+    EmployeeLifecycleController,
     BusinessController,
     BusinessInviteController,
     NotificationController,
@@ -26,6 +33,9 @@ import { BusinessAuditService } from './business-audit.service';
     BusinessAuditController,
   ],
   providers: [
+    GroupService,
+    EmployeeLifecycleService,
+    EmployeeDeletionWorker,
     BusinessService,
     EmployeeService,
     InviteService,

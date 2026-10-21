@@ -99,6 +99,9 @@ export function employeeResponse(
     managerEmployeeId: employee.managerEmployeeId,
     jobTitle: employee.jobTitle,
     status: employee.status,
+    deletionScheduledAt: employee.deletionScheduledAt ?? null,
+    deletionRequestedAt: employee.deletionRequestedAt ?? null,
+    deletedAt: employee.deletedAt ?? null,
     createdAt: employee.createdAt,
     updatedAt: employee.updatedAt,
   };

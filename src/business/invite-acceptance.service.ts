@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { isEmployeeLocked } from './employee-status';
 import { BusinessAccessService, ROLE_INCLUDE } from './business-access.service';
 import { INVITE_SELECT, membershipRoleResponse } from './business.responses';
 import { InvitePermissionsService } from './invite-permissions.service';
@@ -144,7 +145,7 @@ export class InviteAcceptanceService {
           });
           if (
             !employee ||
-            employee.status === 'archived' ||
+            isEmployeeLocked(employee.status) ||
             employee.email !== invite.email ||
             (employee.businessMemberId &&
               employee.businessMemberId !== membership.id)

@@ -17,9 +17,15 @@ import { BusinessModule } from './business/business.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ContactModule } from './public-contact/contact.module';
+import { PayrollModule } from './payroll/payroll.module';
+import { PolicyModule } from './policies/policy.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
+    ReferralsModule,
+    PolicyModule,
+    PayrollModule,
     TasksModule,
     ContactModule,
     InventoryModule,

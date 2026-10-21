@@ -9,6 +9,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, BusinessInvite } from '../../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { isEmployeeLocked } from './employee-status';
 
 import { BusinessAccessService, ROLE_INCLUDE } from './business-access.service';
 import { AcceptInviteDto, InviteDto } from './business.dto';
@@ -78,7 +79,7 @@ export class InviteService {
       });
       if (
         !employee ||
-        employee.status === 'archived' ||
+        isEmployeeLocked(employee.status) ||
         employee.email !== input.email ||
         employee.businessMemberId
       )

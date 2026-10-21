@@ -209,7 +209,10 @@ export class BusinessService {
       missingBankDetails,
     ] = await this.prisma.$transaction([
       this.prisma.businessEmployee.count({
-        where: { businessId, status: { not: 'archived' } },
+        where: {
+          businessId,
+          status: { notIn: ['archived', 'scheduled_for_deletion', 'deleted'] },
+        },
       }),
       this.prisma.businessEmployee.count({
         where: { businessId, status: 'active' },
@@ -218,15 +221,26 @@ export class BusinessService {
         where: { businessId, status: 'pending', expiresAt: { gt: new Date() } },
       }),
       this.prisma.employeeTaxProfile.count({
-        where: { businessId, employee: { status: { not: 'archived' } } },
-      }),
-      this.prisma.businessEmployee.count({
-        where: { businessId, status: { not: 'archived' }, amount: null },
+        where: {
+          businessId,
+          employee: {
+            status: {
+              notIn: ['archived', 'scheduled_for_deletion', 'deleted'],
+            },
+          },
+        },
       }),
       this.prisma.businessEmployee.count({
         where: {
           businessId,
-          status: { not: 'archived' },
+          status: { notIn: ['archived', 'scheduled_for_deletion', 'deleted'] },
+          amount: null,
+        },
+      }),
+      this.prisma.businessEmployee.count({
+        where: {
+          businessId,
+          status: { notIn: ['archived', 'scheduled_for_deletion', 'deleted'] },
           OR: [{ bankCode: null }, { accountNumber: null }],
         },
       }),
@@ -274,14 +288,22 @@ export class BusinessService {
     };
   }
   createGroup(userId: string, businessId: string, input: GroupDto) {
-    return this.prisma.$transaction(async (db) => {
-      await this.access.lock(userId, businessId, ['employee_lists:create'], db);
-      return {
-        group: await db.employeeGroup.create({
-          data: { ...input, businessId },
-        }),
-      };
-    });
+    return this.prisma.$transaction(
+      async (db) => {
+        await this.access.lock(
+          userId,
+          businessId,
+          ['employee_lists:create'],
+          db,
+        );
+        return {
+          group: await db.employeeGroup.create({
+            data: { ...input, businessId },
+          }),
+        };
+      },
+      { maxWait: 15000, timeout: 30000 },
+    );
   }
   async members(userId: string, businessId: string) {
     await this.access.require(userId, businessId, ['members:view']);
@@ -314,7 +336,13 @@ export class BusinessService {
             id: true,
             employeeType: { select: { id: true, name: true, key: true } },
             managerEmployee: { select: { id: true, fullName: true } },
-            groups: { select: { group: { select: { id: true, name: true } } } },
+            groups: {
+              select: {
+                group: {
+                  select: { id: true, name: true, color: true, icon: true },
+                },
+              },
+            },
           },
         },
       },

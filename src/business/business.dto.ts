@@ -21,6 +21,8 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { NIGERIAN_STATES, DEFAULT_TYPE_KEYS } from './nigerian-states';
+import { PayrollInputsDto } from '../payroll/payroll.dto';
+import { GROUP_ICONS } from './group-appearance';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -147,14 +149,28 @@ export class EmployeeQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000000) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize = 20;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(200) search?: string;
-  @IsOptional() @IsIn(['active', 'suspended', 'on_leave', 'archived']) status?:
-    'active' | 'suspended' | 'on_leave' | 'archived';
+  @IsOptional()
+  @IsIn([
+    'active',
+    'suspended',
+    'on_leave',
+    'archived',
+    'scheduled_for_deletion',
+    'deleted',
+  ])
+  status?:
+    | 'active'
+    | 'suspended'
+    | 'on_leave'
+    | 'archived'
+    | 'scheduled_for_deletion'
+    | 'deleted';
   @IsOptional() @IsString() @MaxLength(128) employeeTypeId?: string;
   @IsOptional() @IsIn(['fullName', 'email', 'createdAt']) sortBy:
     'fullName' | 'email' | 'createdAt' = 'createdAt';
   @IsOptional() @IsIn(['asc', 'desc']) sortOrder: 'asc' | 'desc' = 'desc';
 }
-export class GroupDto {
+class GroupIdentityDto {
   @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
   @IsOptional()
   @Transform(trim)
@@ -162,7 +178,36 @@ export class GroupDto {
   @MaxLength(2000)
   description?: string | null;
 }
-export class EmployeeTypeDto extends GroupDto {
+export class GroupDto extends GroupIdentityDto {
+  @IsOptional()
+  @Transform(trim)
+  @Matches(/^#[0-9A-Fa-f]{6}$/)
+  color?: string | null;
+  @IsOptional()
+  @IsIn(GROUP_ICONS)
+  icon?: (typeof GROUP_ICONS)[number] | null;
+}
+export class UpdateGroupDto {
+  @ValidateIf(optional)
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name?: string;
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null;
+  @IsOptional()
+  @Transform(trim)
+  @Matches(/^#[0-9A-Fa-f]{6}$/)
+  color?: string | null;
+  @IsOptional()
+  @IsIn(GROUP_ICONS)
+  icon?: (typeof GROUP_ICONS)[number] | null;
+}
+export class EmployeeTypeDto extends GroupIdentityDto {
   @Matches(/^[a-z][a-z0-9_]{0,63}$/) key!: string;
 }
 export class InviteDto {
@@ -182,6 +227,10 @@ export class AcceptInviteDto {
   @Matches(/^[a-f0-9]{64}$/) token!: string;
 }
 export class TaxProfileDto extends EmployeePaymentDto {
+  @ValidateIf(optional)
+  @ValidateNested()
+  @Type(() => PayrollInputsDto)
+  payrollInputs?: PayrollInputsDto;
   @IsOptional()
   @Transform(trim)
   @IsString()

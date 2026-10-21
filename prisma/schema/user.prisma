@@ -1,4 +1,8 @@
 model User {
+  referralCode ReferralCode?
+  referralCustomer ReferralCustomer?
+  planSelection PlanSelection?
+  referralAudits ReferralAudit[]
   inventoryCarts InventoryCart[]
   inventoryQuotes InventoryQuote[]
   id                          String           @id @default(cuid())

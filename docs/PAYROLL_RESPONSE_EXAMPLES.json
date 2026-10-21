@@ -1,0 +1,351 @@
+{
+  "readyDraft": {
+    "batch": {
+      "id": "cmv89dfj300034oubnxtvg9vn",
+      "businessId": "b",
+      "name": "Payroll 10",
+      "status": "draft",
+      "periodStart": "2026-10-01",
+      "periodEnd": "2026-10-31",
+      "payDate": "2026-10-31",
+      "payFrequency": "monthly",
+      "currency": "NGN",
+      "notes": null,
+      "revision": 1,
+      "totals": {
+        "netAmount": "263500.00",
+        "baseAmount": "300000.00",
+        "grossAmount": "300000.00",
+        "allowancesAmount": "0.00",
+        "deductionsAmount": "36500.00",
+        "totalEmployerCost": "300000.00",
+        "employerContributionsAmount": "0.00"
+      },
+      "blockers": [],
+      "recipientCount": 1,
+      "calculationStatus": "ready",
+      "readyRecipientCount": 1,
+      "sourceChanged": false,
+      "createdAt": "2026-10-14T15:22:15.135Z",
+      "updatedAt": "2026-10-14T15:22:15.135Z",
+      "submittedAt": null,
+      "approvedAt": null,
+      "cancelledAt": null,
+      "createdBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "submittedBy": null,
+      "reviewedBy": null,
+      "reviewNote": null,
+      "cancellationReason": null,
+      "calculationVersion": "ng-2026-monthly-v1",
+      "capabilities": {
+        "canEdit": true,
+        "canRefresh": true,
+        "canSubmit": true,
+        "canApprove": false,
+        "canRequestChanges": false,
+        "canCancel": true
+      }
+    }
+  },
+  "blockedDraft": {
+    "batch": {
+      "id": "cmv89dir300104oubeux35c91",
+      "businessId": "b",
+      "name": "Payroll 12",
+      "status": "draft",
+      "periodStart": "2026-12-01",
+      "periodEnd": "2026-12-31",
+      "payDate": "2026-12-31",
+      "payFrequency": "monthly",
+      "currency": "NGN",
+      "notes": null,
+      "revision": 1,
+      "totals": null,
+      "blockers": [
+        {
+          "code": "EMPLOYMENT_START_REQUIRED",
+          "field": "employmentStartDate",
+          "message": "EMPLOYMENT_START_REQUIRED",
+          "employeeId": "incomplete",
+          "recipientId": "d3522fe7-ff0d-4c68-a4a6-2e3f521627a8"
+        },
+        {
+          "code": "COMPENSATION_REQUIRED",
+          "field": "amount",
+          "message": "COMPENSATION_REQUIRED",
+          "employeeId": "incomplete",
+          "recipientId": "d3522fe7-ff0d-4c68-a4a6-2e3f521627a8"
+        },
+        {
+          "code": "TAX_PROFILE_REQUIRED",
+          "field": "taxProfile",
+          "message": "TAX_PROFILE_REQUIRED",
+          "employeeId": "incomplete",
+          "recipientId": "d3522fe7-ff0d-4c68-a4a6-2e3f521627a8"
+        },
+        {
+          "code": "CALCULATION_INPUTS_REQUIRED",
+          "field": "payrollInputs",
+          "message": "CALCULATION_INPUTS_REQUIRED",
+          "employeeId": "incomplete",
+          "recipientId": "d3522fe7-ff0d-4c68-a4a6-2e3f521627a8"
+        }
+      ],
+      "recipientCount": 1,
+      "calculationStatus": "blocked",
+      "readyRecipientCount": 0,
+      "sourceChanged": false,
+      "createdAt": "2026-10-14T15:22:19.311Z",
+      "updatedAt": "2026-10-14T15:22:19.311Z",
+      "submittedAt": null,
+      "approvedAt": null,
+      "cancelledAt": null,
+      "createdBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "submittedBy": null,
+      "reviewedBy": null,
+      "reviewNote": null,
+      "cancellationReason": null,
+      "calculationVersion": "ng-2026-monthly-v1",
+      "capabilities": {
+        "canEdit": true,
+        "canRefresh": true,
+        "canSubmit": false,
+        "canApprove": false,
+        "canRequestChanges": false,
+        "canCancel": true
+      }
+    }
+  },
+  "recipient": {
+    "recipient": {
+      "id": "2947612a-b9bd-49dc-9579-511556d6651f",
+      "batchId": "cmv89dfj300034oubnxtvg9vn",
+      "employeeId": "e",
+      "employee": {
+        "avatar": null,
+        "status": "active",
+        "fullName": "e",
+        "jobTitle": null,
+        "businessMemberId": null,
+        "employeeTypeName": "Full time",
+        "employmentStartDate": "2026-01-01"
+      },
+      "bank": {
+        "bankCode": "058",
+        "bankName": "Test bank",
+        "maskedAccountNumber": "******5678",
+        "accountName": "Ada",
+        "verificationStatus": "unverified",
+        "verifiedAt": null
+      },
+      "compensation": {
+        "amount": "300000.00",
+        "currency": "NGN",
+        "payFrequency": "monthly"
+      },
+      "baseAmount": "300000.00",
+      "baseOverrideReason": null,
+      "adjustments": [],
+      "totals": {
+        "netAmount": "263500.00",
+        "baseAmount": "300000.00",
+        "grossAmount": "300000.00",
+        "allowancesAmount": "0.00",
+        "deductionsAmount": "36500.00",
+        "totalEmployerCost": "300000.00",
+        "employerContributionsAmount": "0.00"
+      },
+      "blockers": [],
+      "warnings": [
+        {
+          "code": "BANK_UNVERIFIED",
+          "field": "bank",
+          "message": "BANK_UNVERIFIED",
+          "employeeId": "e",
+          "recipientId": "2947612a-b9bd-49dc-9579-511556d6651f"
+        }
+      ],
+      "readiness": "ready",
+      "statutoryLines": [
+        {
+          "code": "PAYE",
+          "kind": "employee_deduction",
+          "label": "PAYE",
+          "amount": "36500.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        },
+        {
+          "code": "PENSION_EMPLOYEE",
+          "kind": "employee_deduction",
+          "label": "Employee pension",
+          "amount": "0.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        },
+        {
+          "code": "PENSION_EMPLOYER",
+          "kind": "employer_contribution",
+          "label": "Employer pension",
+          "amount": "0.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        },
+        {
+          "code": "NHF",
+          "kind": "employee_deduction",
+          "label": "NHF (not applicable)",
+          "amount": "0.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        },
+        {
+          "code": "NHIS_EMPLOYEE",
+          "kind": "employee_deduction",
+          "label": "Employee health contribution",
+          "amount": "0.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        },
+        {
+          "code": "NHIS_EMPLOYER",
+          "kind": "employer_contribution",
+          "label": "Employer health contribution",
+          "amount": "0.00",
+          "calculationReference": "ng-2026-monthly-v1"
+        }
+      ],
+      "calculationVersion": "ng-2026-monthly-v1",
+      "sourceVersion": "84d9535219d150cfa1b6f953db424a1e23570e40849775385c82bbe06f304524",
+      "snapshottedAt": "2026-10-14T15:22:15.154Z",
+      "sourceChanged": false,
+      "notes": null
+    }
+  },
+  "submitted": {
+    "batch": {
+      "id": "cmv89dfj300034oubnxtvg9vn",
+      "businessId": "b",
+      "name": "Payroll 10",
+      "status": "submitted",
+      "periodStart": "2026-10-01",
+      "periodEnd": "2026-10-31",
+      "payDate": "2026-10-31",
+      "payFrequency": "monthly",
+      "currency": "NGN",
+      "notes": null,
+      "revision": 5,
+      "totals": {
+        "netAmount": "303500.00",
+        "baseAmount": "350000.00",
+        "grossAmount": "350000.00",
+        "allowancesAmount": "0.00",
+        "deductionsAmount": "46500.00",
+        "totalEmployerCost": "350000.00",
+        "employerContributionsAmount": "0.00"
+      },
+      "blockers": [],
+      "recipientCount": 1,
+      "calculationStatus": "ready",
+      "readyRecipientCount": 1,
+      "sourceChanged": false,
+      "createdAt": "2026-10-14T15:22:15.135Z",
+      "updatedAt": "2026-10-14T15:22:16.384Z",
+      "submittedAt": "2026-10-14T15:22:16.382Z",
+      "approvedAt": null,
+      "cancelledAt": null,
+      "createdBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "submittedBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "reviewedBy": null,
+      "reviewNote": null,
+      "cancellationReason": null,
+      "calculationVersion": "ng-2026-monthly-v1",
+      "capabilities": {
+        "canEdit": false,
+        "canRefresh": false,
+        "canSubmit": false,
+        "canApprove": false,
+        "canRequestChanges": false,
+        "canCancel": true
+      }
+    }
+  },
+  "approved": {
+    "batch": {
+      "id": "cmv89dfj300034oubnxtvg9vn",
+      "businessId": "b",
+      "name": "Payroll 10",
+      "status": "approved",
+      "periodStart": "2026-10-01",
+      "periodEnd": "2026-10-31",
+      "payDate": "2026-10-31",
+      "payFrequency": "monthly",
+      "currency": "NGN",
+      "notes": null,
+      "revision": 11,
+      "totals": {
+        "netAmount": "303500.00",
+        "baseAmount": "350000.00",
+        "grossAmount": "350000.00",
+        "allowancesAmount": "0.00",
+        "deductionsAmount": "46500.00",
+        "totalEmployerCost": "350000.00",
+        "employerContributionsAmount": "0.00"
+      },
+      "blockers": [],
+      "recipientCount": 1,
+      "calculationStatus": "ready",
+      "readyRecipientCount": 1,
+      "sourceChanged": false,
+      "createdAt": "2026-10-14T15:22:15.135Z",
+      "updatedAt": "2026-10-14T15:22:17.946Z",
+      "submittedAt": "2026-10-14T15:22:17.707Z",
+      "approvedAt": "2026-10-14T15:22:17.943Z",
+      "cancelledAt": null,
+      "createdBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "submittedBy": {
+        "name": "preparer",
+        "avatar": null,
+        "userId": "preparer",
+        "memberId": "m-preparer"
+      },
+      "reviewedBy": {
+        "name": "reviewer",
+        "avatar": null,
+        "userId": "reviewer",
+        "memberId": "m-reviewer"
+      },
+      "reviewNote": "Checked",
+      "cancellationReason": null,
+      "calculationVersion": "ng-2026-monthly-v1",
+      "capabilities": {
+        "canEdit": false,
+        "canRefresh": false,
+        "canSubmit": false,
+        "canApprove": false,
+        "canRequestChanges": false,
+        "canCancel": false
+      }
+    }
+  }
+}

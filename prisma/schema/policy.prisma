@@ -1,0 +1,49 @@
+// Classes organize policies. They do not limit how many policies may apply.
+model PolicyClass {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  key String @db.VarChar(100)
+  createdByUserId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  policies BusinessPolicy[]
+
+  @@unique([businessId, key])
+  @@unique([businessId, id])
+}
+
+model BusinessPolicy {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  classId String
+  policyClass PolicyClass @relation(fields: [businessId, classId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  groupId String
+  group EmployeeGroup @relation(fields: [businessId, groupId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  name String @db.VarChar(200)
+  sourceText String? @db.VarChar(2000)
+  durationDays Int?
+  startsOn DateTime @db.Date
+  endsOn DateTime @db.Date
+  createdByUserId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  assignments EmployeePolicyAssignment[]
+
+  @@unique([businessId, id])
+  @@index([businessId, createdAt])
+}
+
+model EmployeePolicyAssignment {
+  id String @id @default(cuid())
+  businessId String
+  policyId String
+  policy BusinessPolicy @relation(fields: [businessId, policyId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  employeeId String
+  employee BusinessEmployee @relation(fields: [businessId, employeeId], references: [businessId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdByUserId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([businessId, policyId, employeeId])
+  @@index([businessId, employeeId])
+}

@@ -1,0 +1,87 @@
+model PayrollBatch {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(200)
+  status String @default("draft") @db.VarChar(30)
+  periodStart String @db.Char(10)
+  periodEnd String @db.Char(10)
+  payDate String @db.Char(10)
+  payFrequency String @db.VarChar(20)
+  currency String @default("NGN") @db.Char(3)
+  notes String? @db.VarChar(2000)
+  revision Int @default(1)
+  createdBy Json
+  submittedBy Json?
+  reviewedBy Json?
+  contributorUserIds String[]
+  submittedAt DateTime? @db.Timestamptz(3)
+  approvedAt DateTime? @db.Timestamptz(3)
+  cancelledAt DateTime? @db.Timestamptz(3)
+  reviewNote String? @db.VarChar(2000)
+  cancellationReason String? @db.VarChar(2000)
+  calculationVersion String?
+  calculation Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  recipients PayrollRecipient[]
+  history PayrollHistory[]
+  obligations PayrollObligation[]
+  @@unique([businessId,id])
+  @@index([businessId,createdAt,id])
+}
+
+model PayrollRecipient {
+  id String @id @default(cuid())
+  businessId String
+  batchId String
+  batch PayrollBatch @relation(fields: [businessId,batchId], references: [businessId,id], onDelete: Restrict)
+  employeeId String
+  employee BusinessEmployee @relation(fields: [businessId,employeeId], references: [businessId,id], onDelete: Restrict)
+  source Json
+  sourceVersion String @db.Char(64)
+  snapshottedAt DateTime @default(now()) @db.Timestamptz(3)
+  baseAmount String? @db.VarChar(19)
+  baseOverrideReason String? @db.VarChar(1000)
+  adjustments Json @default("[]")
+  calculation Json
+  notes String? @db.VarChar(2000)
+  removed Boolean @default(false)
+  @@unique([batchId,employeeId])
+  @@index([businessId,batchId,id])
+}
+
+model PayrollHistory {
+  id String @id @default(cuid())
+  batchId String
+  batch PayrollBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  revision Int
+  event String @db.VarChar(40)
+  actor Json
+  snapshot Json
+  note String? @db.VarChar(2000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([batchId,revision])
+}
+
+model PayrollOperation {
+  businessId String
+  userId String
+  key String @db.VarChar(100)
+  hash String @db.Char(64)
+  result Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([businessId,userId,key])
+}
+
+model PayrollObligation {
+  id String @id @default(cuid())
+  businessId String
+  batchId String
+  batch PayrollBatch @relation(fields: [businessId,batchId], references: [businessId,id], onDelete: Restrict)
+  employeeId String
+  periodStart DateTime @db.Date
+  periodEnd DateTime @db.Date
+  @@unique([batchId,employeeId])
+  @@index([businessId,employeeId,periodStart,periodEnd])
+}

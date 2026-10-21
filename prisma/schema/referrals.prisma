@@ -1,0 +1,213 @@
+enum ReferralCodeStatus {
+  active
+  disabled
+}
+enum ReferralPlan {
+  starter
+  growth
+  standard
+  efficient
+}
+enum ReferralBillingMode {
+  monthly
+  annually
+}
+enum ReferralEarningStatus {
+  pending
+  available
+  paid
+  reversed
+}
+enum ReferralEligibility {
+  pending_review
+  eligible
+  ineligible
+}
+enum ReferralWebhookStatus {
+  pending
+  processed
+  quarantined
+}
+enum ReferralLedgerKind {
+  credit
+  reversal
+  availability
+  payout
+}
+
+model ReferralCode {
+  id String @id @default(cuid())
+  ownerUserId String @unique
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  tokenHash String @unique @db.VarChar(64)
+  encryptedToken String
+  status ReferralCodeStatus @default(active)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  attributions ReferralAttribution[]
+  @@unique([id, ownerUserId])
+}
+
+// One account-level customer, shared by every workspace billed by that account.
+// External billing aliases must be bound by a verified checkout adapter, never by a public request.
+model ReferralCustomer {
+  id String @id @default(cuid())
+  ownerUserId String @unique
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  eligibility ReferralEligibility @default(pending_review)
+  firstPaidPaymentKey String? @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  attribution ReferralAttribution?
+  selection PlanSelection?
+  payments ReferralPayment[]
+  earning ReferralEarning?
+  billingIdentities ReferralBillingIdentity[]
+  @@unique([id, ownerUserId])
+}
+
+model ReferralBillingIdentity {
+  id String @id @default(cuid())
+  provider String @db.VarChar(40)
+  providerCustomerId String @db.VarChar(200)
+  customerId String
+  customer ReferralCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  businessId String @unique
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([provider, providerCustomerId])
+}
+
+model ReferralAttribution {
+  id String @id @default(cuid())
+  referralCodeId String
+  referrerUserId String
+  code ReferralCode @relation(fields: [referralCodeId, referrerUserId], references: [id, ownerUserId], onDelete: Restrict, onUpdate: Restrict)
+  customerId String @unique
+  referredUserId String
+  customer ReferralCustomer @relation(fields: [customerId, referredUserId], references: [id, ownerUserId], onDelete: Restrict, onUpdate: Restrict)
+  attributedAt DateTime @default(now()) @db.Timestamptz(3)
+  qualifyingPaymentId String? @unique
+  qualifyingPayment ReferralPayment? @relation(fields: [qualifyingPaymentId], references: [id], onDelete: Restrict)
+  selection PlanSelection?
+  earning ReferralEarning?
+  @@unique([id, customerId])
+  @@unique([customerId, referredUserId])
+  @@unique([id, referrerUserId, customerId])
+  @@index([referrerUserId, attributedAt, id])
+}
+
+model PlanSelection {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customerId String @unique
+  customer ReferralCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  planKey ReferralPlan
+  billingMode ReferralBillingMode
+  referralAttributionId String? @unique
+  attribution ReferralAttribution? @relation(fields: [referralAttributionId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model ReferralPayment {
+  id String @id @default(cuid())
+  provider String @db.VarChar(40)
+  providerPaymentId String @db.VarChar(200)
+  customerId String
+  customer ReferralCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  planKey ReferralPlan
+  billingMode ReferralBillingMode
+  currency String @db.VarChar(3)
+  settledSubtotalMinor BigInt
+  refundedSubtotalMinor BigInt @default(0)
+  settledAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  attribution ReferralAttribution?
+  earning ReferralEarning?
+  @@unique([provider, providerPaymentId])
+  @@index([customerId, settledAt, id])
+}
+
+model ReferralEarning {
+  id String @id @default(cuid())
+  attributionId String @unique
+  referrerUserId String
+  customerId String @unique
+  attribution ReferralAttribution @relation(fields: [attributionId, referrerUserId, customerId], references: [id, referrerUserId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  customer ReferralCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  paymentId String @unique
+  payment ReferralPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  currency String @db.VarChar(3)
+  eligibleAmountMinor BigInt
+  rateBps Int @default(1000)
+  commissionMinor BigInt
+  reversedMinor BigInt @default(0)
+  status ReferralEarningStatus @default(pending)
+  availableAt DateTime? @db.Timestamptz(3)
+  paidAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  entries ReferralLedgerEntry[]
+  @@unique([id, referrerUserId, currency])
+  @@unique([attributionId, referrerUserId, customerId])
+  @@index([referrerUserId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model ReferralLedgerEntry {
+  id String @id @default(cuid())
+  earningId String
+  referrerUserId String
+  currency String @db.VarChar(3)
+  earning ReferralEarning @relation(fields: [earningId, referrerUserId, currency], references: [id, referrerUserId, currency], onDelete: Restrict, onUpdate: Restrict)
+  idempotencyKey String @unique @db.VarChar(300)
+  kind ReferralLedgerKind
+  pendingDelta BigInt @default(0)
+  availableDelta BigInt @default(0)
+  paidDelta BigInt @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([referrerUserId, currency])
+  @@index([earningId, createdAt, id])
+}
+
+// Signature verification and provider first-payment lookup must precede insertion.
+// This is verified payment metadata only, never raw provider/card payloads.
+model ReferralWebhookEvent {
+  id String @id @default(cuid())
+  provider String @db.VarChar(40)
+  eventId String @db.VarChar(200)
+  payloadDigest String @db.VarChar(64)
+  providerPaymentId String @db.VarChar(200)
+  cumulativeRefundMinor BigInt?
+  status ReferralWebhookStatus @default(pending)
+  processedAt DateTime? @db.Timestamptz(3)
+  errorCode String? @db.VarChar(60)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([provider, eventId])
+  @@index([provider, providerPaymentId, status])
+}
+
+model ReferralAudit {
+  id String @id @default(cuid())
+  eventType String @db.VarChar(80)
+  actorUserId String?
+  subjectUserId String
+  subject User @relation(fields: [subjectUserId], references: [id], onDelete: Restrict)
+  referrerUserId String?
+  referredUserId String?
+  customerId String?
+  businessId String?
+  referralCodeId String?
+  attributionId String?
+  earningId String?
+  paymentId String?
+  requestId String? @db.VarChar(100)
+  correlationId String? @db.VarChar(300)
+  metadata Json @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([subjectUserId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([referrerUserId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([referredUserId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([eventType, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([paymentId])
+  @@index([earningId])
+}

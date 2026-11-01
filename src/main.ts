@@ -9,7 +9,9 @@ import { requestContextMiddleware } from './common/middleware/request-context.mi
 import { csrfOriginMiddleware } from './common/middleware/csrf-origin.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
   const configService = app.get(ConfigService);
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const frontendOrigin = configService.get<string>(
@@ -27,6 +29,8 @@ async function bootstrap() {
     credentials: true,
   });
   app.use(helmet());
+  app.useBodyParser('json', { inflate: false });
+  app.useBodyParser('urlencoded', { extended: false, inflate: false });
   app.use(cookieParser());
   app.use(requestContextMiddleware);
   app.use(csrfOriginMiddleware(new Set([new URL(frontendOrigin).origin])));

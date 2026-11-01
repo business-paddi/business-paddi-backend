@@ -1,5 +1,5 @@
-import { InvitePermissionsService } from '../business/invite-permissions.service';
-import { InviteAcceptanceService } from '../business/invite-acceptance.service';
+import { InvitePermissionsService } from './invitations/invite-permissions.service';
+import { InviteAcceptanceService } from './invitations/invite-acceptance.service';
 import { InviteEmailOutbox } from '../invite-email/invite-email-outbox.service';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -10,11 +10,11 @@ import {
   BusinessInviteController,
 } from './business.controller';
 import { BusinessService } from './business.service';
-import { EmployeeService } from './employee.service';
+import { EmployeeService } from './employees/employee.service';
 import { EMPLOYEE_INCLUDE } from './business.responses';
-import { InviteService } from './invite.service';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import { BusinessAccessService } from './business-access.service';
+import { InviteService } from './invitations/invite.service';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import { BusinessAccessService } from './access/business-access.service';
 import { PrismaService } from '../database/prisma.service';
 import {
   allowedPermissions,

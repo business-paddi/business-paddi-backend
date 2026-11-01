@@ -10,8 +10,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import { LocationService } from '../location/location.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';

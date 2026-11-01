@@ -1,0 +1,1547 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "BusinessPaddi Remita payroll instruction POC",
+    "version": "0.1.0",
+    "description": "Mock/approved sandbox only. No funds custody, wallets, live payments or assumed beneficiary settlement."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local development only"
+    }
+  ],
+  "paths": {
+    "/businesses/{businessId}/payroll/batches/{batchId}/payment": {
+      "post": {
+        "operationId": "preparePayrollPayment",
+        "summary": "preparePayrollPayment",
+        "description": "Requires payments:view and payments:create. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "batchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,100}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Prepare"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}": {
+      "get": {
+        "operationId": "getPayrollPayment",
+        "summary": "getPayrollPayment",
+        "description": "Requires payments:view and invoices:view. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/approve": {
+      "post": {
+        "operationId": "approvePayrollPayment",
+        "summary": "approvePayrollPayment",
+        "description": "Requires payments:view and payments:approve. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/invoice": {
+      "post": {
+        "operationId": "createPayrollInvoice",
+        "summary": "createPayrollInvoice",
+        "description": "Requires payments:view and invoices:create. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/payment-status": {
+      "get": {
+        "operationId": "getPayrollPaymentStatus",
+        "summary": "getPayrollPaymentStatus",
+        "description": "Requires payments:view and invoices:view. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/refresh-status": {
+      "post": {
+        "operationId": "refreshPayrollPaymentStatus",
+        "summary": "refreshPayrollPaymentStatus",
+        "description": "Requires payments:view and invoices:view. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/cancel": {
+      "post": {
+        "operationId": "cancelUnpaidPayrollInvoice",
+        "summary": "cancelUnpaidPayrollInvoice",
+        "description": "Requires payments:view and payments:cancel. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/businesses/{businessId}/payroll/payments/{paymentId}/mock-event": {
+      "post": {
+        "operationId": "simulatePayrollProviderEvent",
+        "summary": "simulatePayrollProviderEvent",
+        "description": "Requires payments:view and invoices:create. Independent approval is enforced. No live mode or custody.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instruction/status payload. HTTP success alone does not imply collection or settlement.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Validation, access, state, rate-limit or provider configuration error; see local handoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrations/remita/webhook": {
+      "post": {
+        "operationId": "receiveRemitaSignal",
+        "summary": "Untrusted sandbox payment signal; never marks paid",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "$ref": "#/components/schemas/RemitaSignal"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Same generic acknowledgement for known/unknown references.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "Ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed signal"
+          },
+          "404": {
+            "description": "Not sandbox mode"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "accessToken"
+      }
+    },
+    "schemas": {
+      "Prepare": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "payerName",
+          "payerEmail",
+          "payerPhone"
+        ],
+        "properties": {
+          "payerName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "payerEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "payerPhone": {
+            "type": "string",
+            "pattern": "^\\+?[0-9]{10,15}$"
+          }
+        }
+      },
+      "Empty": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "MockEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "scenario"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,80}$"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PAID",
+              "FAILED",
+              "PARTIAL",
+              "SETTLED",
+              "REVERSED",
+              "UNDERPAID",
+              "TIMEOUT",
+              "ERROR"
+            ]
+          }
+        }
+      },
+      "Beneficiary": {
+        "type": "object",
+        "required": [
+          "lineItemId",
+          "employeeId",
+          "recipientType",
+          "name",
+          "bankCode",
+          "amountKobo",
+          "account",
+          "status"
+        ],
+        "properties": {
+          "lineItemId": {
+            "type": "string"
+          },
+          "employeeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "recipientType": {
+            "type": "string",
+            "enum": [
+              "EMPLOYEE",
+              "PLATFORM_FEE"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "bankCode": {
+            "type": "string",
+            "pattern": "^[0-9]{3,6}$"
+          },
+          "amountKobo": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Integer kobo, serialized as a decimal string for precision."
+          },
+          "account": {
+            "type": "string",
+            "enum": [
+              "[encrypted; withheld]"
+            ]
+          },
+          "accountLast4": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "PAID",
+              "REVERSED"
+            ]
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": [
+          "id",
+          "businessId",
+          "batchId",
+          "provider",
+          "simulation",
+          "state",
+          "merchantReference",
+          "providerStatus",
+          "settlementStatus",
+          "totalNetSalaryKobo",
+          "platformFeeKobo",
+          "providerFeeKobo",
+          "totalInvoiceKobo",
+          "beneficiaries",
+          "notice"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "businessId": {
+            "type": "string"
+          },
+          "batchId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "remita_mock",
+              "remita_sandbox"
+            ]
+          },
+          "simulation": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "APPROVED",
+              "CREATING",
+              "INVOICE_UNKNOWN",
+              "INVOICE_READY",
+              "CANCEL_REQUESTED",
+              "CANCEL_UNKNOWN",
+              "CANCELLED"
+            ]
+          },
+          "merchantReference": {
+            "type": "string"
+          },
+          "remitaRRR": {
+            "type": "string",
+            "nullable": true
+          },
+          "providerStatus": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "UNPAID",
+              "PAID",
+              "FAILED",
+              "MISMATCH",
+              "REVERSED"
+            ]
+          },
+          "settlementStatus": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "PARTIAL",
+              "SETTLED",
+              "REVERSED"
+            ],
+            "description": "Sandbox always UNKNOWN; other values are mock simulation only."
+          },
+          "period": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "NGN"
+            ]
+          },
+          "totalNetSalaryKobo": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Integer kobo, serialized as a decimal string for precision."
+          },
+          "platformFeeKobo": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Integer kobo, serialized as a decimal string for precision."
+          },
+          "providerFeeKobo": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Integer kobo, serialized as a decimal string for precision.",
+            "nullable": true
+          },
+          "totalInvoiceKobo": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Integer kobo, serialized as a decimal string for precision."
+          },
+          "payer": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "phone": {
+                "type": "string"
+              }
+            }
+          },
+          "beneficiaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Beneficiary"
+            }
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "approvedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastCheckedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastErrorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Always null; no supported checkout URL is assumed."
+          },
+          "notice": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "statusCode",
+          "message"
+        ],
+        "properties": {
+          "statusCode": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "RemitaSignal": {
+        "type": "object",
+        "required": [
+          "rrr"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "rrr": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "orderRef": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "transactiondate": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "description": "Must include orderId or orderRef. All callback values are untrusted signals."
+      }
+    }
+  }
+}

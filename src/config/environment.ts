@@ -1,3 +1,4 @@
+import { validateRemitaEnvironment } from '../payroll/payments/remita-config';
 type Environment = Record<string, string | undefined>;
 
 const REQUIRED = [
@@ -92,6 +93,7 @@ export function validateEnvironment(input: Environment): Environment {
         throw new Error(`${key} must be at least 32 characters`);
     }
   }
+  validateRemitaEnvironment(environment);
   return environment;
 }
 

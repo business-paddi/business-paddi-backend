@@ -3,7 +3,7 @@ import { UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 import request from 'supertest';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import { PayrollController } from './payroll.controller';
 import { PayrollReadService } from './payroll-read.service';
 import { PayrollService } from './payroll.service';

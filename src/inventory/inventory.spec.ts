@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import {
   checkRevision,
   money,

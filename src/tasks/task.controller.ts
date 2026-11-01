@@ -16,8 +16,8 @@ import {
   UseFilters,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import {
   AnalyticsQueryDto,
   AssignmentDto,

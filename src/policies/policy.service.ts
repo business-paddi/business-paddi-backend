@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma/client';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 import { PrismaService } from '../database/prisma.service';
 import { CreatePolicyClassesDto, PolicyDraftDto } from './policy.dto';
 import {

@@ -1,4 +1,6 @@
 model PayrollBatch {
+  payments PayrollPayment[]
+
   id String @id @default(cuid())
   businessId String
   business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)

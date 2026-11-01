@@ -10,8 +10,8 @@ import { PrismaService } from '../database/prisma.service';
 import {
   BusinessAccessService,
   ROLE_INCLUDE,
-} from '../business/business-access.service';
-import type { Access } from '../business/business-access.service';
+} from '../business/access/business-access.service';
+import type { Access } from '../business/access/business-access.service';
 export type TaskIdentity = {
   memberId: string;
   userId: string;

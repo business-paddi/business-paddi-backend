@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 import { PolicyController } from './policy.controller';
 import { PolicyService } from './policy.service';
 import { PolicyChatService } from './policy-chat.service';

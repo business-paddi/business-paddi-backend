@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { invitationEmail } from './invitation-email.template';
 import { InviteEmailVault } from './invite-email-vault.service';
-import { InvitePermissionsService } from '../business/invite-permissions.service';
+import { InvitePermissionsService } from '../business/invitations/invite-permissions.service';
 
 describe('Invitation email and grant policy', () => {
   const payload = invitationEmail({

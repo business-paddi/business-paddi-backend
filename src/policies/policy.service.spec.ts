@@ -1,6 +1,6 @@
 import { PolicyService } from './policy.service';
 import { PrismaService } from '../database/prisma.service';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 
 function harness() {
   const db = {

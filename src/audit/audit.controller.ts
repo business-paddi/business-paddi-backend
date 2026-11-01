@@ -1,6 +1,6 @@
 import { Controller, Get, Header, Query, Req, UseGuards } from '@nestjs/common';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import { AuditService } from './audit.service';
 import { ListAuditEventsDto } from './dto/list-audit-events.dto';
 

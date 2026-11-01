@@ -8,8 +8,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import { LocationService } from '../location/location.service';
 import { UpsertOnboardingDto } from './dto/upsert-onboarding.dto';
 import { OnboardingService } from './onboarding.service';

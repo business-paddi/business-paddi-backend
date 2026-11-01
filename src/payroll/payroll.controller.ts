@@ -13,8 +13,8 @@ import {
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import { PayrollService } from './payroll.service';
 import { PayrollReadService } from './payroll-read.service';
 import {

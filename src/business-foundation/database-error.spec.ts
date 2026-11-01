@@ -1,4 +1,4 @@
-import { databaseErrorSummary } from '../../scripts/database-error';
+import { databaseErrorSummary } from '../../scripts/lib/database-error';
 
 describe('Database error diagnostics', () => {
   it('reports non-Error adapter failures and nested causes', () => {

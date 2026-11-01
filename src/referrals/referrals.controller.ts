@@ -12,8 +12,8 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import { BusinessCacheInterceptor } from '../business/business-cache.interceptor';
 import type { RequestWithContext } from '../common/middleware/request-context.middleware';
 import { catalog } from './plan-catalog';

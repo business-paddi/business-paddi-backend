@@ -12,7 +12,7 @@ import {
 
 describe('Business foundation', () => {
   it('preserves the exact supplied catalog and role grant counts', () => {
-    expect(new Set(allowedPermissions).size).toBe(54);
+    expect(new Set(allowedPermissions).size).toBe(55);
     expect(
       Object.fromEntries(
         Object.entries(systemRolePermissions).map(([key, grants]) => [
@@ -21,14 +21,17 @@ describe('Business foundation', () => {
         ]),
       ),
     ).toEqual({
-      owner: 54,
-      admin: 35,
-      finance_manager: 19,
+      owner: 55,
+      admin: 36,
+      finance_manager: 20,
       accountant: 9,
       employee: 4,
       contributor: 3,
       viewer: 4,
     });
+    expect(Object.entries(systemRolePermissions)
+      .filter(([, grants]) => (grants as readonly string[]).includes('payroll:view_details'))
+      .map(([role]) => role).sort()).toEqual(['admin', 'finance_manager', 'owner']);
     for (const grants of Object.values(systemRolePermissions)) {
       expect(new Set(grants).size).toBe(grants.length);
       expect(grants.every((grant) => allowedPermissions.includes(grant))).toBe(

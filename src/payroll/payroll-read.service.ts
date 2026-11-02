@@ -57,15 +57,18 @@ export class PayrollReadService {
     db: Prisma.TransactionClient = this.prisma,
   ) {
     const c = b.calculation as unknown as BatchCalculation;
+    const detailed = a.permissions.includes('payroll:view_details');
     const editable = ['draft', 'changes_requested'].includes(b.status);
     const independent = !b.contributorUserIds.includes(a.actor.userId);
     const canReview =
+      detailed &&
       a.permissions.includes('payments:approve') &&
       independent &&
       b.status === 'submitted';
-    const canPrepare = a.permissions.includes('payments:create') && editable;
+    const canPrepare =
+      detailed && a.permissions.includes('payments:create') && editable;
     const sourceBlockers: Blocker[] = [];
-    if (editable || b.status === 'submitted') {
+    if (detailed && (editable || b.status === 'submitted')) {
       const recipients = await db.payrollRecipient.findMany({
         where: { batchId: b.id, removed: false },
       });
@@ -104,10 +107,10 @@ export class PayrollReadService {
       payDate: b.payDate,
       payFrequency: b.payFrequency,
       currency: b.currency,
-      notes: b.notes,
+      notes: detailed ? b.notes : null,
       revision: b.revision,
       ...c,
-      blockers: [...c.blockers, ...sourceBlockers],
+      blockers: detailed ? [...c.blockers, ...sourceBlockers] : [],
       sourceChanged: sourceBlockers.length > 0,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
@@ -117,8 +120,8 @@ export class PayrollReadService {
       createdBy: b.createdBy,
       submittedBy: b.submittedBy,
       reviewedBy: b.reviewedBy,
-      reviewNote: b.reviewNote,
-      cancellationReason: b.cancellationReason,
+      reviewNote: detailed ? b.reviewNote : null,
+      cancellationReason: detailed ? b.cancellationReason : null,
       calculationVersion: b.calculationVersion,
       capabilities: {
         canEdit: canPrepare,
@@ -131,6 +134,7 @@ export class PayrollReadService {
         canApprove: canReview && !sourceBlockers.length,
         canRequestChanges: canReview,
         canCancel:
+          detailed &&
           a.permissions.includes('payments:cancel') &&
           !['approved', 'cancelled'].includes(b.status),
       },
@@ -241,7 +245,7 @@ export class PayrollReadService {
     batchId: string,
     q: PayrollRecipientsDto,
   ) {
-    await this.access.context(userId, businessId);
+    await this.access.context(userId, businessId, ['payroll:view_details']);
     await this.find(businessId, batchId);
     const filter = {
       userId,
@@ -299,7 +303,10 @@ export class PayrollReadService {
     };
   }
   async candidates(userId: string, businessId: string, q: PayrollCandidateDto) {
-    await this.access.context(userId, businessId, ['payments:create']);
+    await this.access.context(userId, businessId, [
+      'payments:create',
+      'payroll:view_details',
+    ]);
     if (!!q.periodStart !== !!q.periodEnd) fail('PERIOD_PAIR_REQUIRED');
     const start = q.periodStart
       ? date(q.periodStart)

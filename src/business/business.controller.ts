@@ -14,11 +14,11 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import { BusinessService } from './business.service';
-import { EmployeeService } from './employee.service';
-import { InviteService } from './invite.service';
+import { EmployeeService } from './employees/employee.service';
+import { InviteService } from './invitations/invite.service';
 import {
   AcceptInviteDto,
   BusinessDto,

@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { Server } from 'node:http';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
 import { DashboardTaskController, TaskController } from './task.controller';
 import { TaskService } from './task.service';
 import { TaskReadService } from './task-read.service';

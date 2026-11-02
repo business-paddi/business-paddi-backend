@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { AuditController } from './audit.controller';
-import { AuthGuardModule } from '../auth-guard/auth-guard.module';
+import { AuthGuardModule } from '../identity/auth-guard/auth-guard.module';
 
 @Global()
 @Module({

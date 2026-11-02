@@ -10,16 +10,16 @@ import { Prisma } from '../../generated/prisma/client';
 import { AUDIT_EVENTS } from '../audit/audit-event.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
-import { EmailChangeVerificationService } from '../email-change-verification/email-change-verification.service';
+import { EmailChangeVerificationService } from '../identity/email-change-verification/email-change-verification.service';
 import { EmailService } from '../email/email.service';
 import type { RequestLocationContext } from '../location/location.service';
 import { SensitiveActionRateLimitService } from '../rate-limit/sensitive-action-rate-limit.service';
-import type { SensitiveAction } from '../sensitive-action/dto/request-sensitive-verification.dto';
+import type { SensitiveAction } from '../identity/sensitive-action/dto/request-sensitive-verification.dto';
 import {
   PUBLIC_PREFERENCES_SELECT,
   toPublicPreferences,
 } from '../onboarding/onboarding-preferences';
-import { SensitiveActionVerificationService } from '../sensitive-action/sensitive-action-verification.service';
+import { SensitiveActionVerificationService } from '../identity/sensitive-action/sensitive-action-verification.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { RequestEmailChangeDto } from './dto/request-email-change.dto';

@@ -47,16 +47,22 @@ See `.env.example` for the full list. Auth-critical keys: `DATABASE_URL`,
 
 ## Layout
 
-- `src/auth`, `src/session`, `src/users`, `src/password-reset`,
-  `src/sensitive-action`, `src/login-verification`,
-  `src/verification-code`, `src/email-change-verification`,
-  `src/google-auth`, `src/audit` — feature modules
-- `src/auth-token`, `src/auth-cookie`, `src/auth-guard` — token/cookie/guard
-  plumbing; `src/rate-limit`, `src/email`, `src/location`, `src/redis`,
-  `src/database`, `src/config`, `src/common` — infrastructure
-- `prisma/schema/` — database schema; `prisma/migrations/` — migrations
-- `docs/BUSINESS_FRONTEND_HANDOFF.md` — business endpoint contract and frontend integration notes
+- `src/identity/` — authentication, sessions, guards, tokens and verification flows.
+- `src/business/` — business API and subfolders for employees, groups, invitations, members, notifications, audit and access checks.
+- `src/inventory/` — catalog, stock, checkout and reporting services behind a stable InventoryService facade. Shared write safety lives in inventory-context.ts.
+- `src/policies/`, `src/payroll/`, `src/tasks/`, `src/referrals/` — product feature modules. Policy AI remains disabled.
+- `src/common/`, `src/config/`, `src/database/`, `src/redis/`, `src/email/`, `src/location/`, `src/rate-limit/` — shared infrastructure.
+- `prisma/schema/` — domain schemas; `prisma/migrations/` — immutable migration history.
+- `scripts/checks/`, `scripts/seeds/`, `scripts/maintenance/`, `scripts/lib/` — executable checks, explicit seeds, maintenance tools and script helpers. Run from the repository root; npm command names are unchanged.
+- `docs/README.md` — documentation index and current frontend integration contracts.
+- Unit and HTTP contract tests live beside source; `test/` contains end-to-end tests.
+
+Keep new feature files within their domain. Use business subfolders for related responsibilities without creating a Nest module for every folder. Extract a service when it has a coherent responsibility; preserve authorization and transaction boundaries when doing so.
 
 ## License
 
 UNLICENSED (private).
+
+## Remita payroll proof of concept
+
+See [local setup and runnable examples](docs/integrations/remita-local.md) and [feasibility/blockers](docs/integrations/remita.md). The integration is disabled by default and supports mock/approved sandbox only, never live transfers or custody.

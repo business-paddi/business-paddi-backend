@@ -6,7 +6,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { BusinessAccessService, ROLE_INCLUDE } from './business-access.service';
+import {
+  BusinessAccessService,
+  ROLE_INCLUDE,
+} from './access/business-access.service';
 import {
   BusinessDto,
   UpdateBusinessDto,
@@ -20,10 +23,10 @@ import {
   employeeResponse,
   membershipRoleResponse,
 } from './business.responses';
-import { InviteService } from './invite.service';
+import { InviteService } from './invitations/invite.service';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma/client';
-import { EmployeeService } from './employee.service';
+import { EmployeeService } from './employees/employee.service';
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);

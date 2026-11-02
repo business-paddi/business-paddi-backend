@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:5000/api
+@businessId = REPLACE_BUSINESS_ID
+@batchId = REPLACE_APPROVED_SYNTHETIC_BATCH_ID
+@paymentId = REPLACE_PAYMENT_ID
+@makerCookie = REPLACE_LOCAL_MAKER_ACCESS_TOKEN
+@approverCookie = REPLACE_LOCAL_INDEPENDENT_APPROVER_ACCESS_TOKEN
+
+### Prepare instruction from existing approved payroll; only fake accounts in mock mode.
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/batches/{{batchId}}/payment
+Cookie: accessToken={{makerCookie}}
+Idempotency-Key: local-remita-instruction-1
+Content-Type: application/json
+
+{"payerName":"Synthetic Employer","payerEmail":"payroll@example.test","payerPhone":"08000000000"}
+
+### Review before approval
+GET {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}
+Cookie: accessToken={{approverCookie}}
+
+### Independent approval
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/approve
+Cookie: accessToken={{approverCookie}}
+Content-Type: application/json
+
+{}
+
+### Generate exactly one invoice instruction
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/invoice
+Cookie: accessToken={{makerCookie}}
+Content-Type: application/json
+
+{}
+
+### Simulate collection only (MOCK MODE, never real money)
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/mock-event
+Cookie: accessToken={{makerCookie}}
+Content-Type: application/json
+
+{"eventId":"local-event-1","scenario":"PAID"}
+
+### Obtain independent provider/mock status
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/refresh-status
+Cookie: accessToken={{makerCookie}}
+Content-Type: application/json
+
+{}
+
+### Stored status (no provider call)
+GET {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/payment-status
+Cookie: accessToken={{makerCookie}}
+
+### Cancel only when eligible/unpaid; this does not cancel the approved salary batch
+POST {{baseUrl}}/businesses/{{businessId}}/payroll/payments/{{paymentId}}/cancel
+Cookie: accessToken={{makerCookie}}
+Content-Type: application/json
+
+{}

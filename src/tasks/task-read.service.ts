@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { BusinessTask, Prisma } from '../../generated/prisma/client';
-import type { Access } from '../business/business-access.service';
+import type { Access } from '../business/access/business-access.service';
 import { PrismaService } from '../database/prisma.service';
 import { TaskAccessService } from './task-access.service';
 import { TaskOperationService } from './task-operation.service';

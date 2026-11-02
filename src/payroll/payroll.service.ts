@@ -73,7 +73,7 @@ export class PayrollService {
         const a = await this.access.context(
           userId,
           businessId,
-          grants,
+          [...grants, 'payroll:view_details'],
           db,
           true,
         );

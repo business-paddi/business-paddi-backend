@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 import { PrismaService } from '../database/prisma.service';
 import { isCalendarDate } from './policy-parser';
 import { PolicyInferenceProvider } from './policy-inference.provider';

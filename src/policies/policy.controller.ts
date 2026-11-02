@@ -11,8 +11,8 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import { PolicyErrorFilter } from './policy-error.filter';
 import {
   AssignPolicyDto,

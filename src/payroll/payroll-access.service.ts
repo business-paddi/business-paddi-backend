@@ -4,7 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 import {
   BusinessAccessService,
   ROLE_INCLUDE,
-} from '../business/business-access.service';
+} from '../business/access/business-access.service';
 import type { Permission } from '../business-foundation/permission-catalog';
 import { fail } from './payroll-calculation';
 export type Actor = {
@@ -87,7 +87,7 @@ export class PayrollAccessService {
     return members.filter(
       (m) =>
         (m.role.type === 'system' || m.role.businessId === businessId) &&
-        ['payments:view', 'payments:approve'].every(
+        ['payments:view', 'payments:approve', 'payroll:view_details'].every(
           (p) =>
             m.role.permissions.some((g) => g.permission === p) &&
             !m.role.deniedPermissions.some((g) => g.permission === p),

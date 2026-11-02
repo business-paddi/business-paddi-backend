@@ -22,7 +22,7 @@ import {
 } from 'class-validator';
 import { NIGERIAN_STATES, DEFAULT_TYPE_KEYS } from './nigerian-states';
 import { PayrollInputsDto } from '../payroll/payroll.dto';
-import { GROUP_ICONS } from './group-appearance';
+import { GROUP_ICONS } from './groups/group-appearance';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;

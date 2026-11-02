@@ -3,10 +3,10 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { LocationModule } from '../location/location.module';
 import { EmailModule } from '../email/email.module';
-import { EmailChangeVerificationModule } from '../email-change-verification/email-change-verification.module';
-import { AuthGuardModule } from '../auth-guard/auth-guard.module';
+import { EmailChangeVerificationModule } from '../identity/email-change-verification/email-change-verification.module';
+import { AuthGuardModule } from '../identity/auth-guard/auth-guard.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
-import { SensitiveActionModule } from '../sensitive-action/sensitive-action.module';
+import { SensitiveActionModule } from '../identity/sensitive-action/sensitive-action.module';
 
 @Module({
   imports: [

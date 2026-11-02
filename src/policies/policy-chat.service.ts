@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 import { PrismaService } from '../database/prisma.service';
 import { PolicyService } from './policy.service';
 // import { PolicyInferenceService } from './policy-inference.service';

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { BusinessAccessService } from '../business/business-access.service';
+import { BusinessAccessService } from '../business/access/business-access.service';
 import { TaskAccessService } from './task-access.service';
 import { TaskService } from './task.service';
 import { TaskReadService } from './task-read.service';

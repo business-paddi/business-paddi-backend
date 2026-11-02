@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  HttpException,
   Logger,
   NotFoundException,
   OnApplicationShutdown,
@@ -68,6 +69,15 @@ export class TaskImagesService implements OnModuleInit, OnApplicationShutdown {
           );
         if (t.assigneeMemberId === a.member.id)
           await this.access.ownAssignment(a, t, db);
+        await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'uploads:' + businessId},0))::text`;
+        const lastHour = new Date(Date.now() - 3600000);
+        const scope = { task: { businessId }, createdAt: { gte: lastHour } };
+        const [tenant, user] = await Promise.all([
+          db.taskImage.count({ where: scope }),
+          db.taskImage.count({ where: { ...scope, uploadedByUserId: userId } }),
+        ]);
+        if (tenant >= 200 || user >= 20)
+          throw new HttpException('Hourly upload quota reached', 429);
         return db.taskImage.create({
           data: {
             taskId,
@@ -89,6 +99,7 @@ export class TaskImagesService implements OnModuleInit, OnApplicationShutdown {
     const timestamp = Math.floor(Date.now() / 1000);
     const fields = {
       timestamp,
+      allowed_formats: formats[b.contentType],
       public_id: image.publicId,
       type: 'authenticated',
       overwrite: false,

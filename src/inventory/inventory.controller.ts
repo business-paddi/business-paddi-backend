@@ -15,8 +15,8 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AccessTokenGuard } from '../auth-guard/access-token.guard';
-import type { AuthenticatedRequest } from '../auth-guard/authenticated-request';
+import { AccessTokenGuard } from '../identity/auth-guard/access-token.guard';
+import type { AuthenticatedRequest } from '../identity/auth-guard/authenticated-request';
 import { BusinessCacheInterceptor } from '../business/business-cache.interceptor';
 import { InventoryService } from './inventory.service';
 import { InventoryErrorFilter } from './inventory-error.filter';
@@ -46,6 +46,15 @@ class DeleteRevisionQuery extends RevisionDto {
 @UseInterceptors(BusinessCacheInterceptor)
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
+  @Get('operations/:kind/:key')
+  operationStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('businessId') business: string,
+    @Param('kind') kind: string,
+    @Param('key') key: string,
+  ) {
+    return this.inventory.operationStatus(req.auth.userId, business, kind, key);
+  }
   @Get('summary') summary(
     @Req() req: AuthenticatedRequest,
     @Param('businessId') b: string,

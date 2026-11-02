@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild": "prisma generate",
     "build": "nest build",
-    "maxmind:download": "bash ./scripts/download-maxmind-db.sh",
+    "maxmind:download": "bash ./scripts/maintenance/download-maxmind-db.sh",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -20,14 +20,16 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
-    "db:seed": "ts-node --project tsconfig.scripts.json scripts/seed-business-foundation.ts",
-    "db:test:integrity": "ts-node --project tsconfig.scripts.json scripts/test-business-integrity.ts",
-    "db:test:business": "ts-node --project tsconfig.scripts.json scripts/test-business-api.ts",
-    "db:test:inventory": "ts-node --project tsconfig.scripts.json scripts/test-inventory-api.ts",
-    "db:test:invites": "ts-node --project tsconfig.scripts.json scripts/test-invite-email.ts",
-    "db:test:notifications": "ts-node --project tsconfig.scripts.json scripts/test-notification-events.ts",
-    "db:test:tasks": "ts-node --project tsconfig.scripts.json scripts/test-tasks-api.ts",
-    "db:test:payroll": "ts-node --project tsconfig.scripts.json scripts/test-payroll-api.ts"
+    "db:seed": "ts-node --project tsconfig.scripts.json scripts/seeds/seed-business-foundation.ts",
+    "db:test:integrity": "ts-node --project tsconfig.scripts.json scripts/checks/test-business-integrity.ts",
+    "db:test:business": "ts-node --project tsconfig.scripts.json scripts/checks/test-business-api.ts",
+    "db:test:inventory": "ts-node --project tsconfig.scripts.json scripts/checks/test-inventory-api.ts",
+    "db:test:invites": "ts-node --project tsconfig.scripts.json scripts/checks/test-invite-email.ts",
+    "db:test:notifications": "ts-node --project tsconfig.scripts.json scripts/checks/test-notification-events.ts",
+    "db:test:tasks": "ts-node --project tsconfig.scripts.json scripts/checks/test-tasks-api.ts",
+    "db:test:payroll": "ts-node --project tsconfig.scripts.json scripts/checks/test-payroll-api.ts",
+    "test:remita": "jest --runInBand src/payroll/payments/remita.spec.ts",
+    "db:test:remita": "ts-node --project tsconfig.scripts.json scripts/checks/test-remita-payroll.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -100,5 +102,13 @@
     },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "2.5.0"
+    }
+  },
+  "engines": {
+    "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1 <27"
   }
 }

@@ -1,0 +1,53 @@
+// Instruction envelope for the existing PayrollBatch/PayrollRecipient snapshot.
+model PayrollPayment {
+  id String @id @default(cuid())
+  businessId String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  batchId String
+  batch PayrollBatch @relation(fields: [businessId,batchId], references: [businessId,id], onDelete: Restrict)
+  provider String @db.VarChar(30)
+  merchantReference String @unique @db.VarChar(80)
+  remitaRRR String? @db.VarChar(40)
+  state String @default("DRAFT") @db.VarChar(30)
+  providerStatus String @default("UNKNOWN") @db.VarChar(30)
+  settlementStatus String @default("UNKNOWN") @db.VarChar(30)
+  totalNetSalaryKobo BigInt
+  platformFeeKobo BigInt
+  providerFeeKobo BigInt?
+  totalInvoiceKobo BigInt
+  snapshot Json
+  snapshotHash String @db.Char(64)
+  createdByUserId String
+  approvedByUserId String?
+  approvedAt DateTime? @db.Timestamptz(3)
+  requestKey String @db.VarChar(100)
+  requestHash String @db.Char(64)
+  providerCode String? @db.VarChar(80)
+  verifiedAt DateTime? @db.Timestamptz(3)
+  lastCheckedAt DateTime? @db.Timestamptz(3)
+  checkToken String?
+  reconcileRequestedAt DateTime? @db.Timestamptz(3)
+  lastSignalHash String? @db.Char(64)
+  lastSignalAt DateTime? @db.Timestamptz(3)
+  mockScenario String @default("UNPAID") @db.VarChar(30)
+  recipientEvidence Json @default("[]")
+  lastErrorCode String? @db.VarChar(80)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  mockEvents PayrollMockEvent[]
+  @@unique([businessId,id])
+  @@unique([businessId,createdByUserId,requestKey])
+  @@unique([provider,remitaRRR])
+  @@index([businessId,batchId,createdAt])
+  @@index([reconcileRequestedAt])
+}
+
+model PayrollMockEvent {
+  businessId String
+  paymentId String
+  payment PayrollPayment @relation(fields: [businessId,paymentId], references: [businessId,id], onDelete: Restrict)
+  eventId String @db.VarChar(80)
+  scenario String @db.VarChar(30)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([paymentId,eventId])
+}

@@ -117,14 +117,12 @@ describe('Auth (e2e, no email codes)', () => {
     );
   });
 
-  it('POST /api/auth/login blocks unverified email with 403', async () => {
+  it('POST /api/auth/login rejects an unfinished registration', async () => {
     const res = await agent
       .post('/api/auth/login')
       .send({ email, password })
-      .expect(HttpStatus.FORBIDDEN);
-    expect((res.body as { message: string }).message).toBe(
-      'Email verification is required',
-    );
+      .expect(HttpStatus.UNAUTHORIZED);
+    expect(res.body).toMatchObject({message:'Invalid email or password'});
   });
 
   it('POST /api/auth/email-verification/resend enforces delivery cooldown and accepts an unknown email uniformly', async () => {

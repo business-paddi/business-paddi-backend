@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { argon2id, hash, verify } from 'argon2';
@@ -25,6 +26,7 @@ import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { RequestEmailChangeDto } from './dto/request-email-change.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ReadCacheService } from '../redis/read-cache.service';
 
 const PUBLIC_USER_SELECT = {
   id: true,
@@ -53,9 +55,28 @@ export class UsersService {
     private readonly email: EmailService,
     private readonly sensitiveRateLimits: SensitiveActionRateLimitService,
     private readonly sensitiveVerification: SensitiveActionVerificationService,
+    @Optional() private readonly readCache?: ReadCacheService,
   ) {}
 
-  async getCurrentUser(userId: string) {
+  async getCurrentUser(userId: string, revision?: string) {
+    if (!this.readCache) return this.loadCurrentUser(userId);
+    if (revision === undefined) {
+      const [row] = await this.prisma.$queryRaw<{ revision: string }[]>`
+        SELECT COALESCE(v."revision"::text, '0') AS "revision"
+        FROM "User" u LEFT JOIN "ReadCacheRevision" v
+          ON v."scope" = 'user' AND v."entityId" = u."id"
+        WHERE u."id" = ${userId}
+      `;
+      if (!row) return this.loadCurrentUser(userId);
+      revision = row.revision;
+    }
+    return this.readCache.remember(
+      `bp:read:v1:user:${userId}:${revision}`,
+      () => this.loadCurrentUser(userId),
+    );
+  }
+
+  private async loadCurrentUser(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -117,7 +138,9 @@ export class UsersService {
     }
   }
 
-  async getPreferences(userId: string) {
+  async getPreferences(userId: string, revision?: string) {
+    if (this.readCache)
+      return (await this.getCurrentUser(userId, revision)).preferences;
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { preferences: { select: PUBLIC_PREFERENCES_SELECT } },

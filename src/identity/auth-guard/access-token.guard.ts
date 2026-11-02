@@ -39,28 +39,33 @@ export class AccessTokenGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const userSession = await this.prisma.userSession.findUnique({
-      where: { userSessionId: claims.userSessionId },
-      select: {
-        userId: true,
-        currentAuthSessionId: true,
-        revokedAt: true,
-        user: {
-          select: {
-            emailVerifiedAt: true,
-            status: true,
-          },
-        },
-      },
-    });
+    // One primary-database round trip for revocation, user status, and cache freshness.
+    // Never cache the session check: logout/suspension must take effect on the next request.
+    const [userSession] = await this.prisma.$queryRaw<
+      {
+        userId: string;
+        currentAuthSessionId: string | null;
+        revokedAt: Date | null;
+        emailVerifiedAt: Date | null;
+        status: string;
+        revision: string;
+      }[]
+    >`
+      SELECT s."userId", s."currentAuthSessionId", s."revokedAt",
+             u."emailVerifiedAt", u."status"::text AS "status",
+             COALESCE(v."revision"::text, '0') AS "revision"
+      FROM "UserSession" s JOIN "User" u ON u."id" = s."userId"
+      LEFT JOIN "ReadCacheRevision" v ON v."scope" = 'user' AND v."entityId" = u."id"
+      WHERE s."userSessionId" = ${claims.userSessionId}
+    `;
 
     if (
       !userSession ||
       userSession.userId !== claims.userId ||
       userSession.revokedAt ||
       !userSession.currentAuthSessionId ||
-      !userSession.user.emailVerifiedAt ||
-      userSession.user.status !== 'active'
+      !userSession.emailVerifiedAt ||
+      userSession.status !== 'active'
     ) {
       throw new UnauthorizedException('Authentication required');
     }
@@ -69,6 +74,7 @@ export class AccessTokenGuard implements CanActivate {
       userId: claims.userId,
       userSessionId: claims.userSessionId,
       accessTokenId: claims.tokenId,
+      userCacheRevision: userSession.revision,
     });
     (request as AuthenticatedRequest).auth = principal;
 

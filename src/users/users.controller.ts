@@ -31,7 +31,10 @@ export class UsersController {
   @Get('me')
   @Header('Cache-Control', 'no-store')
   getCurrentUser(@Req() request: AuthenticatedRequest) {
-    return this.users.getCurrentUser(request.auth.userId);
+    return this.users.getCurrentUser(
+      request.auth.userId,
+      request.auth.userCacheRevision,
+    );
   }
 
   @Patch('profile')
@@ -49,7 +52,10 @@ export class UsersController {
   @Get('preferences')
   @Header('Cache-Control', 'no-store')
   getPreferences(@Req() request: AuthenticatedRequest) {
-    return this.users.getPreferences(request.auth.userId);
+    return this.users.getPreferences(
+      request.auth.userId,
+      request.auth.userCacheRevision,
+    );
   }
   @Patch('preferences')
   @Header('Cache-Control', 'no-store')

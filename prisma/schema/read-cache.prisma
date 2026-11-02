@@ -1,0 +1,9 @@
+// Changed by database triggers in the same transaction as the source record.
+// Kept separate from public models so cache metadata never enters API responses.
+model ReadCacheRevision {
+  scope    String @db.VarChar(20)
+  entityId String
+  revision String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  @@id([scope, entityId])
+}
